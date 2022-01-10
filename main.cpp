@@ -1,12 +1,11 @@
-// #include <cstdio>
+#include <cstdio>
 
-// extern "C"
-// {
+extern "C"
+{
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
-#include <stdio.h>
-// }
+}
 
 
 int
@@ -47,7 +46,7 @@ main(void)
 		nread = read(STDIN_FILENO, buf, sizeof(buf));
 	}
 	for (int i = 0; i < nread; ++i) {
-		printf("byte %02d: 0x%02x\n", i, buf[i]);
+		std::printf("byte %02d: 0x%02x\n", i, buf[i]);
 	}
 
 	/* reset terminal settings back to normal */
