@@ -359,18 +359,17 @@ main(void)
 	now.c_cc[VMIN] = 0; /* min of 0 characters for read(3) */
 	tcsetattr(STDIN_FILENO, TCSANOW, &now);
 
-//	/* test out ansi commands; clear screen */
-//	unsigned char const cmd_clear[] = "\x1b[2J";
-//	write(STDOUT_FILENO, cmd_clear, sizeof(cmd_clear));
-//
-//	/* move cursor to top left */
-//	unsigned char const cmd_mov_topleft[] = "\x1b[1;1H";
-//	write(STDOUT_FILENO, cmd_mov_topleft, sizeof(cmd_mov_topleft));
-//
-//	/* request "device status report," i.e., current cursor position.
-//	 * (information comes through stdin, but we don't parse it.) */
-//	unsigned char const cmd_device_report[] = "\x1b[6n";
-//	write(STDOUT_FILENO, cmd_device_report, sizeof(cmd_device_report));
+	/* test out ansi commands; clear screen */
+	unsigned char const cmd_clear[] = "\x1b[2J";
+	write(STDOUT_FILENO, cmd_clear, sizeof(cmd_clear));
+
+	/* move cursor to top left */
+	unsigned char const cmd_mov_topleft[] = "\x1b[1;1H";
+	write(STDOUT_FILENO, cmd_mov_topleft, sizeof(cmd_mov_topleft));
+
+	/* request "device status report," i.e., current cursor position. */
+	unsigned char const cmd_device_report[] = "\x1b[6n";
+	write(STDOUT_FILENO, cmd_device_report, sizeof(cmd_device_report));
 
 	/* setup input facility */
 	struct input_machine machine;
