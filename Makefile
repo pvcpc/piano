@@ -1,7 +1,7 @@
 CC      := /usr/bin/gcc
-CFLAGS  :=
+CFLAGS  := -Wall -Werror -pedantic
 
-sources := $(wildcard *.cpp)
+sources := $(wildcard *.c)
 target  := a.out
 
 ifdef NDEBUG
