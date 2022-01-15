@@ -8,7 +8,9 @@
 #include <string.h>
 #include <time.h>
 
+#include "t_base.h"
 
+#if 0
 enum input_stat
 {
 	IN_ENOOPS   = -5,
@@ -341,10 +343,45 @@ in_next(
 	}
 	return IN_ENOOPS;
 }
+#endif
 
 int
 main(void)
 {
+	t_setup();
+
+	while (1) {
+		struct t_event ev;
+		enum t_status stat = t_poll(&ev);
+		
+		if (stat >= 0) {
+			printf("cmd: ");
+			for (uint32_t i = 0; i < ev.seq_len; ++i) {
+				printf("%02x ", ev.seq_buf[i]);
+			}
+			printf("mod: %02x val: %02x\n", ev.mod, ev.val);
+			if (ev.n_params) {
+				puts("\tparams:");
+				for (uint32_t i = 0; i < ev.n_params; ++i) {
+					printf("\t%2d: %d\n", i, ev.params[i]);
+				}
+			}
+			if (ev.n_inters) {
+				puts("\tinters:");
+				for (uint32_t i = 0; i < ev.n_inters; ++i) {
+					printf("\t%2d: %02x\n", i, ev.inters[i]);
+				}
+			}
+		}
+		else if (stat != T_EEMPTY) {
+			fprintf(stderr, "t_poll failed: %s\n",
+				t_status_string(stat));
+		}
+	}
+
+	t_cleanup();
+
+#if 0
 	/* disable "canonical mode" so we can read input as it's typed. We
 	 * get two copies so we can restore the previous settings at he end 
 	 * of the program.
@@ -414,5 +451,6 @@ main(void)
 
 	/* reset terminal settings back to normal */
 	tcsetattr(STDIN_FILENO, TCSANOW, &old);
+#endif
 	return 0;
 }
