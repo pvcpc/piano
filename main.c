@@ -290,18 +290,17 @@ in_next(
 			}
 			break;
 
-		case INM_PARAM_EMIT: {
-			if (mach->in.n_params >= IN_MAX_PARAMS) {
-				break;
+		case INM_PARAM_EMIT:
+			if (mach->in.n_params < IN_MAX_PARAMS) {
+				uint8_t result = 0;
+				for (uint32_t i = 0; i < mach->scratch_p; ++i) {
+					result *= 10;
+					result += mach->scratch[i] - '0';
+				}
+				mach->in.params [mach->in.n_params++] = result;
+				mach->scratch_p = 0;
 			}
-			uint8_t result = 0;
-			for (uint32_t i = 0; i < mach->scratch_p; ++i) {
-				result *= 10;
-				result += mach->scratch[i] - '0';
-			}
-			mach->in.params [mach->in.n_params++] = result;
-			mach->scratch_p = 0;
-		}
+			break;
 
 		/* intermediate bytes */
 		case INM_INTER:
@@ -375,7 +374,7 @@ main(void)
 	struct input_machine machine;
 	in_init(&machine);
 
-	uint8_t buf [1];
+	uint8_t buf [256];
 	int len;
 
 	while (1) {
@@ -393,7 +392,11 @@ main(void)
 				in_stat_string(stat));
 		}
 		else if (stat >= 0) {
-			printf("mod: %02x, val: %02x\n", in.mod, in.val);
+			printf("cmd: ");
+			for (uint32_t i = 0; i < len; ++i) {
+				printf("%02x ", buf[i]);
+			}
+			printf("mod: %02x val: %02x\n", in.mod, in.val);
 			if (in.n_params) {
 				puts("\tparams:");
 				for (uint32_t i = 0; i < in.n_params; ++i) {
