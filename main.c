@@ -11,13 +11,16 @@ main(void)
 {
 	t_setup();
 
-	t_writez(TR_CLRSCRN);
-	t_writef(TR_CURSOR_POSITION, 0, 0);
-
 	while (1) {
 		struct t_event ev;
 		t_event_clear(&ev);
-		t_poll(&ev);
+
+		enum t_status stat = t_poll(&ev);
+
+		if (stat >= 0) {
+			printf("elapsed %.2fs — delta %.2fs\n",
+				t_elapsed(), t_delta());
+		}
 
 		switch (ev.qcode) {
 		case T_QCODE(0, 'h'):

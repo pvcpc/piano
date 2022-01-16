@@ -1,6 +1,7 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <stdint.h>
 #include <string.h>
@@ -85,6 +86,9 @@ static enum t_event_mod const PC_KEYFUNC_TABLE [] = {
 /* all global variables are below and can be moved to a struct when necessary */
 static struct termios         g_tios_old;
 
+static struct timespec        g_time_genesis;
+static struct timespec        g_time_previous;
+
 /* poll machine */
 static uint8_t                g_read_buf     [TM_GLOBAL_READ_BUF_SIZE];
 static uint8_t const         *g_cursor;
@@ -137,6 +141,10 @@ t_setup()
 	now.c_cc[VTIME] = 0; /* min of 0 deciseconds for read(3) to block */
 	now.c_cc[VMIN] = 0; /* min of 0 characters for read(3) */
 	tcsetattr(STDIN_FILENO, TCSANOW, &now);
+
+	/* time stuff */
+	clock_gettime(CLOCK_MONOTONIC, &g_time_genesis);
+	clock_gettime(CLOCK_MONOTONIC, &g_time_previous);
 }
 
 void
@@ -144,6 +152,35 @@ t_cleanup()
 {
 	/* reset terminal settings back to normal */
 	tcsetattr(STDIN_FILENO, TCSANOW, &g_tios_old);
+}
+
+double
+t_elapsed()
+{
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	return 1e-9 * (
+		(now.tv_sec - g_time_genesis.tv_sec) * 1e9 +
+		(now.tv_nsec - g_time_genesis.tv_nsec)
+	);
+}
+
+double
+t_delta()
+{
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	double const delta = 1e-9 * (
+		(now.tv_sec - g_time_previous.tv_sec) * 1e9 +
+		(now.tv_nsec - g_time_previous.tv_nsec)
+	);
+
+	g_time_previous.tv_sec = now.tv_sec;
+	g_time_previous.tv_nsec = now.tv_nsec;
+
+	return delta;
 }
 
 char const *

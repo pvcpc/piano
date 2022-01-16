@@ -26,32 +26,20 @@ writef(
 	va_list vl;
 	va_start(vl, format);
 	while (*format && buffer < end) {
-		if (*format == '%') {
-			++format;
-			switch (*format) {
-			case 'd': {
-				uint8_t dec [64];
-				uint32_t dec_p = 0;
-				int arg = va_arg(vl, int);
-				if (arg < 0) {
-					arg = -arg;
-					*buffer++ = '-';
-				}
-				while (arg) {
-					dec[dec_p++] = arg % 10;
-					arg /= 10;
-				}
-				while (buffer < end && dec_p > 0) {
-					*buffer++ = dec[--dec_p] + '0';
-				}
-				break;
+		switch (*format) {
+		case '%': {
+			uint8_t dec [64];
+			uint32_t dec_p = 0;
+			int arg = va_arg(vl, int);
+			while (arg) {
+				dec[dec_p++] = arg % 10;
+				arg /= 10;
 			}
-			default:
-				return -1;
+			while (buffer < end && dec_p > 0) {
+				*buffer++ = dec[--dec_p] + '0';
 			}
+			break;
 		}
-		else {
-			*buffer++ = *format;
 		}
 		++format;
 	}

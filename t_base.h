@@ -46,6 +46,12 @@ t_setup();
 void
 t_cleanup();
 
+double
+t_elapsed();
+
+double
+t_delta();
+
 char const *
 t_status_string(
 	enum t_status stat
