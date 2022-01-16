@@ -49,20 +49,20 @@ enum t_poll_machine_op
  * reassigned later. */
 static enum t_event_mod const PC_KEYMOD_TABLE [] = {
 	[ 2] =      0 |         0 |     0 | T_SHIFT,
-    [ 3] =      0 |         0 | T_ALT |       0,
-    [ 4] =      0 |         0 | T_ALT | T_SHIFT,
-    [ 5] =      0 | T_CONTROL |     0 |       0,
-    [ 6] =      0 | T_CONTROL |     0 | T_SHIFT,
-    [ 7] =      0 | T_CONTROL | T_ALT |       0,
-    [ 8] =      0 | T_CONTROL | T_ALT | T_SHIFT,
-    [ 9] = T_META |         0 |     0 |       0,
-    [10] = T_META |         0 |     0 | T_SHIFT,
-    [11] = T_META |         0 | T_ALT |       0, 
-    [12] = T_META |         0 | T_ALT | T_SHIFT,
-    [13] = T_META | T_CONTROL |     0 |       0,
-    [14] = T_META | T_CONTROL |     0 | T_SHIFT,
-    [15] = T_META | T_CONTROL | T_ALT |       0,
-    [16] = T_META | T_CONTROL | T_ALT | T_SHIFT,
+	[ 3] =      0 |         0 | T_ALT |       0,
+	[ 4] =      0 |         0 | T_ALT | T_SHIFT,
+	[ 5] =      0 | T_CONTROL |     0 |       0,
+	[ 6] =      0 | T_CONTROL |     0 | T_SHIFT,
+	[ 7] =      0 | T_CONTROL | T_ALT |       0,
+	[ 8] =      0 | T_CONTROL | T_ALT | T_SHIFT,
+	[ 9] = T_META |         0 |     0 |       0,
+	[10] = T_META |         0 |     0 | T_SHIFT,
+	[11] = T_META |         0 | T_ALT |       0, 
+	[12] = T_META |         0 | T_ALT | T_SHIFT,
+	[13] = T_META | T_CONTROL |     0 |       0,
+	[14] = T_META | T_CONTROL |     0 | T_SHIFT,
+	[15] = T_META | T_CONTROL | T_ALT |       0,
+	[16] = T_META | T_CONTROL | T_ALT | T_SHIFT,
 };
 
 static enum t_event_mod const PC_KEYFUNC_TABLE [] = {
@@ -183,18 +183,16 @@ t_poll(
 				t_mach_push(TM_HALT_ON_EMPTY);
 				t_mach_push(TM_READ);
 			}
+			else if (g_cursor[0] == '\x1b') {
+				t_mach_push(TM_ESCAPE_INIT);
+				t_mach_cursor_inc();
+			}
+			else if (0x00 <= g_cursor[0] &&
+							 g_cursor[0] <= 0x1f) {
+				t_mach_push(TM_CONTROL);
+			}
 			else {
-				if (g_cursor[0] == '\x1b') {
-					t_mach_push(TM_ESCAPE_INIT);
-					t_mach_cursor_inc();
-				}
-				else if (0x00 <= g_cursor[0] &&
-				                 g_cursor[0] <= 0x1f) {
-					t_mach_push(TM_CONTROL);
-				}
-				else {
-					t_mach_push(TM_NORMAL);
-				}
+				t_mach_push(TM_NORMAL);
 			}
 			break;
 
