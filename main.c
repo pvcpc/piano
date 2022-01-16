@@ -1,20 +1,18 @@
-#include <termios.h>
-#include <unistd.h>
-#include <poll.h>
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 
 #include "t_base.h"
+#include "t_render.h"
 
 
 int
 main(void)
 {
 	t_setup();
+
+	t_writez(TR_CLRSCRN);
+	t_writef(TR_CURSOR_POSITION, 0, 0);
 
 	while (1) {
 		struct t_event ev;

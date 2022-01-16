@@ -1,18 +1,12 @@
 #ifndef INCLUDE_T_BASE_H
 #define INCLUDE_T_BASE_H
 
+#include "t_util.h"
+
 #define T_PARAMS_MAX 16
 #define T_INTERS_MAX 16
 #define T_SEQUENCE_BUF_SIZE 16
 
-enum t_status
-{
-	T_EUNKNOWN = -4,
-	T_EEMPTY   = -3,
-	T_ENOOPS   = -2,
-	T_ENULL    = -1,
-	T_OK       =  0,
-};
 
 enum t_event_mod
 {
@@ -78,5 +72,10 @@ t_writez(
 	char const *data
 );
 
+enum t_status
+t_viewport_size_get(
+	uint32_t *out_w,
+	uint32_t *out_h
+);
 
 #endif /* INCLUDE_T_BASE_H */
