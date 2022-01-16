@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "t_util.h"
 #include "t_base.h"
 
 #define TM_GLOBAL_READ_BUF_SIZE 256
@@ -18,10 +19,14 @@ enum t_poll_machine_op
 
 	TM_NORMAL,
 	TM_CONTROL,
+
 	TM_ESCAPE_INIT,
 	TM_ESCAPE,
 	TM_ESCAPE_BRACKET_INIT,
 	TM_ESCAPE_BRACKET,
+
+	TM_SS3_FUNC_INIT,
+	TM_SS3_FUNC,
 
 	TM_PARAM,
 	TM_PARAM_EMIT,
@@ -36,6 +41,43 @@ enum t_poll_machine_op
 	TM_HALT_UNKNOWN,
 	TM_HALT_ON_EMPTY,
 	TM_HALT_EMIT,
+};
+
+/* https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-PC-Style-Function-Keys */
+/* @NOTE(max): the way T_* keys are assigned, this table is actually just
+ * an identity table, so it may be removed if the modifiers are not
+ * reassigned later. */
+static enum t_event_mod const PC_KEYMOD_TABLE [] = {
+	[ 2] =      0 |         0 |     0 | T_SHIFT,
+    [ 3] =      0 |         0 | T_ALT |       0,
+    [ 4] =      0 |         0 | T_ALT | T_SHIFT,
+    [ 5] =      0 | T_CONTROL |     0 |       0,
+    [ 6] =      0 | T_CONTROL |     0 | T_SHIFT,
+    [ 7] =      0 | T_CONTROL | T_ALT |       0,
+    [ 8] =      0 | T_CONTROL | T_ALT | T_SHIFT,
+    [ 9] = T_META |         0 |     0 |       0,
+    [10] = T_META |         0 |     0 | T_SHIFT,
+    [11] = T_META |         0 | T_ALT |       0, 
+    [12] = T_META |         0 | T_ALT | T_SHIFT,
+    [13] = T_META | T_CONTROL |     0 |       0,
+    [14] = T_META | T_CONTROL |     0 | T_SHIFT,
+    [15] = T_META | T_CONTROL | T_ALT |       0,
+    [16] = T_META | T_CONTROL | T_ALT | T_SHIFT,
+};
+
+static enum t_event_mod const PC_KEYFUNC_TABLE [] = {
+	[11] =  1,
+	[12] =  2,
+	[13] =  3,
+	[14] =  4,
+	[15] =  5,
+	[17] =  6,
+	[18] =  7,
+	[19] =  8,
+	[20] =  9,
+	[21] = 10,
+	[23] = 11,
+	[24] = 12,
 };
 
 /* all global variables are below and can be moved to a struct when necessary */
@@ -178,6 +220,7 @@ t_poll(
 			break;
 
 		case TM_ESCAPE:
+			g_ev.is_escape = 1;
 			if (!available) {
 				g_ev.val = '\x1b';
 				t_mach_push(TM_HALT_EMIT);
@@ -187,6 +230,10 @@ t_poll(
 				t_mach_push(TM_HALT_EMIT);
 				t_mach_cursor_inc();
 			}
+			else if (g_cursor[0] == '\x4f') {
+				t_mach_push(TM_SS3_FUNC_INIT);
+				t_mach_cursor_inc();
+			}
 			else if (g_cursor[0] == '[') {
 				t_mach_push(TM_ESCAPE_BRACKET_INIT);
 				t_mach_cursor_inc();
@@ -194,6 +241,26 @@ t_poll(
 			else {
 				g_ev.mod |= T_ALT;
 				g_ev.val = t_mach_cursor_inc();
+				t_mach_push(TM_HALT_EMIT);
+			}
+			break;
+
+		case TM_SS3_FUNC_INIT:
+			t_mach_push(TM_SS3_FUNC);
+			if (!available) {
+				t_mach_push(TM_READ);
+			}
+			break;
+
+		case TM_SS3_FUNC:
+			if (!available) {
+				g_ev.val = '\x4f';
+				t_mach_push(TM_HALT_EMIT);
+				t_mach_cursor_inc();
+			}
+			else {
+				g_ev.mod |= T_FUNC;
+				g_ev.val = t_mach_cursor_inc() - '\x4f';
 				t_mach_push(TM_HALT_EMIT);
 			}
 			break;
@@ -236,7 +303,7 @@ t_poll(
 				t_mach_push(TM_READ);
 			}
 			else if (g_cursor[0] < 0x30 ||
-			                           0x3f < g_cursor[0]) {
+			                       0x3f < g_cursor[0]) {
 				t_mach_push(TM_INTER);
 				t_mach_push(TM_PARAM_EMIT);
 			}
@@ -301,6 +368,26 @@ t_poll(
 
 		/* terminating instructions */
 		case TM_HALT_EMIT:
+			if (g_ev.val == '~') {
+				/* F5+ keys with modifiers */
+				uint32_t key_index = T_MIN(
+					g_ev.params[0], T_ARRAY_LENGTH(PC_KEYFUNC_TABLE)
+				);
+				uint32_t mod_index = T_MIN(
+					g_ev.params[1], T_ARRAY_LENGTH(PC_KEYMOD_TABLE)
+				);
+				g_ev.val = PC_KEYFUNC_TABLE[key_index];
+				g_ev.mod = T_FUNC | PC_KEYMOD_TABLE[mod_index];
+			}
+			if (g_ev.is_escape && (0x50 <= g_ev.val && g_ev.val <= 0x54)) {
+				/* F1-F4 keys with modifiers */
+				uint32_t mod_index = T_MIN(
+					g_ev.params[1], T_ARRAY_LENGTH(PC_KEYMOD_TABLE)
+				);
+				g_ev.val -= '\x4f';
+				g_ev.mod = T_FUNC | PC_KEYMOD_TABLE[mod_index];
+			}
+			g_ev.qcode = T_QCODE(g_ev.mod, g_ev.val);
 			memcpy(out, &g_ev, sizeof(struct t_event));
 			return T_OK;
 
