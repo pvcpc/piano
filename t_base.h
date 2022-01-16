@@ -21,13 +21,15 @@ enum t_event_mod
 	T_CONTROL = 0x04,
 	T_META    = 0x08,
 	T_FUNC    = 0x10,
-	T_TIMER   = 0x20,
+	T_TIMER   = 0x20, /* @TODO(max): not implemented */
 };
 
 struct t_event
 {
 	uint8_t  mod;
 	uint8_t  val;
+	double   delta; /* for T_TIMER only, time elapsed since add in seconds */
+	double   elapsed; /* for T_TIMER only, time between last evocation in seconds */
 	uint16_t qcode; /* see T_QCODE macro below */
 
 	uint16_t params [T_PARAMS_MAX];
@@ -43,28 +45,6 @@ struct t_event
 
 /* bitshift-or together mod/val values for easy switch/case or table lookups */
 #define T_QCODE(Mod, Val) (((Mod) << 8) | (Val))
-
-/* common rendition codes */
-#define TR_RESET      "\x1b[0m"
-
-#define TR_FG_BLACK   "\x1b[30m"
-#define TR_FG_RED     "\x1b[31m"
-#define TR_FG_GREEN   "\x1b[32m"
-#define TR_FG_YELLOW  "\x1b[33m"
-#define TR_FG_BLUE    "\x1b[34m"
-#define TR_FG_MAGENTA "\x1b[35m"
-#define TR_FG_CYAN    "\x1b[36m"
-#define TR_FG_WHITE   "\x1b[37m"
-
-#define TR_BG_BLACK   "\x1b[40m"
-#define TR_BG_RED     "\x1b[41m"
-#define TR_BG_GREEN   "\x1b[42m"
-#define TR_BG_YELLOW  "\x1b[43m"
-#define TR_BG_BLUE    "\x1b[44m"
-#define TR_BG_MAGENTA "\x1b[45m"
-#define TR_BG_CYAN    "\x1b[46m"
-#define TR_BG_WHITE   "\x1b[47m"
-
 
 void
 t_setup();
@@ -97,5 +77,6 @@ enum t_status
 t_writez(
 	char const *data
 );
+
 
 #endif /* INCLUDE_T_BASE_H */

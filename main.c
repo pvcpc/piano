@@ -23,16 +23,22 @@ main(void)
 
 		switch (ev.qcode) {
 		case T_QCODE(0, 'h'):
-			t_writez(TR_FG_RED "h was pressed");
+			puts("h was pressed");
 			break;
 		case T_QCODE(0, 'j'):
-			t_writez(TR_FG_GREEN "j was pressed");
+			puts("j was pressed");
 			break;
 		case T_QCODE(0, 'k'):
-			t_writez(TR_FG_YELLOW "k was pressed");
+			puts("k was pressed");
 			break;
 		case T_QCODE(0, 'l'):
-			t_writez(TR_FG_BLUE "l was pressed");
+			puts("l was pressed");
+			break;
+		case T_QCODE(T_TIMER, 0):
+			printf("timer 0: delta %.2fs, elapsed %.2fs\n", ev.delta, ev.elapsed);
+			break;
+		case T_QCODE(T_TIMER, 1):
+			printf("timer 1: delta %.2fs, elapsed %.2fs\n", ev.delta, ev.elapsed);
 			break;
 		}
 	}

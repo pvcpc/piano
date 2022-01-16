@@ -7,6 +7,7 @@
 #include "t_util.h"
 #include "t_base.h"
 
+#define TM_TIMERS_MAX 16
 #define TM_GLOBAL_READ_BUF_SIZE 256
 #define TM_CODES_MAX 16
 #define TM_SCRATCH_BUF_SIZE 256
@@ -83,12 +84,13 @@ static enum t_event_mod const PC_KEYFUNC_TABLE [] = {
 /* all global variables are below and can be moved to a struct when necessary */
 static struct termios         g_tios_old;
 
+/* poll machine */
 static uint8_t                g_read_buf     [TM_GLOBAL_READ_BUF_SIZE];
 static uint8_t const         *g_cursor;
 static uint8_t const         *g_end;
 static int                    g_read_buf_len;
 
-static enum t_poll_code g_codes        [TM_CODES_MAX];
+static enum t_poll_code       g_codes        [TM_CODES_MAX];
 static uint32_t               g_code_p;
 
 static uint8_t                g_scratch      [TM_SCRATCH_BUF_SIZE];
