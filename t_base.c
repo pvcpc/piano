@@ -12,7 +12,7 @@
 #define TM_SCRATCH_BUF_SIZE 256
 
 
-enum t_poll_machine_op
+enum t_poll_code
 {
 	/* parsing insructions */
 	TM_DETERMINE,
@@ -88,7 +88,7 @@ static uint8_t const         *g_cursor;
 static uint8_t const         *g_end;
 static int                    g_read_buf_len;
 
-static enum t_poll_machine_op g_codes        [TM_CODES_MAX];
+static enum t_poll_code g_codes        [TM_CODES_MAX];
 static uint32_t               g_code_p;
 
 static uint8_t                g_scratch      [TM_SCRATCH_BUF_SIZE];
@@ -97,15 +97,15 @@ static uint32_t               g_scratch_p;
 static struct t_event         g_ev;
 
 
-static enum t_poll_machine_op
+static enum t_poll_code
 t_mach_push(
-	enum t_poll_machine_op code
+	enum t_poll_code code
 ) {
 	/* @TODO(max): overflow not protected, need proper error handling */
 	return g_codes[g_code_p++] = code;
 }
 
-static enum t_poll_machine_op
+static enum t_poll_code
 t_mach_pop() 
 {
 	/* @TODO(max): underflow not protected, need proper error handling */
@@ -172,8 +172,8 @@ t_poll(
 	t_mach_push(TM_RESET);
 
 	while (g_code_p > 0) {
-		enum t_poll_machine_op const code      = t_mach_pop();
-		uint32_t               const available = g_cursor <= g_end ? 
+		enum t_poll_code const code      = t_mach_pop();
+		uint32_t         const available = g_cursor <= g_end ? 
 			g_end - g_cursor : 0;
 
 		switch (code) {
