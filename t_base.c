@@ -164,6 +164,17 @@ t_status_string(
 }
 
 enum t_status
+t_event_clear(
+	struct t_event *event
+) {
+	if (!event) return T_ENULL;
+
+	memset(event, 0, sizeof(struct t_event));
+
+	return T_OK;
+}
+
+enum t_status
 t_poll(
 	struct t_event *out
 ) {
@@ -320,7 +331,7 @@ t_poll(
 
 		case TM_PARAM_EMIT:
 			if (g_ev.n_params < T_PARAMS_MAX) {
-				uint8_t result = 0;
+				uint16_t result = 0;
 				for (uint32_t i = 0; i < g_scratch_p; ++i) {
 					result *= 10;
 					result += g_scratch[i] - '0';
@@ -401,4 +412,25 @@ t_poll(
 
 	/* should never reach here, but just in case */
 	return T_ENOOPS;
+}
+
+enum t_status
+t_write(
+	uint8_t const *data,
+	uint32_t length
+) {
+	if (!data) return T_ENULL;
+
+	/* @TODO(max): sometime in the future get errno to report proper
+	 * error, although, with stdout, that's not usually an issue. */
+	return write(STDOUT_FILENO, data, length) < 0 ? T_EUNKNOWN : T_OK;
+}
+
+enum t_status
+t_writez(
+	char const *data
+) {
+	if (!data) return T_ENULL;
+
+	return t_write((uint8_t const *) data, strlen(data));
 }

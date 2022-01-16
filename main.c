@@ -18,30 +18,22 @@ main(void)
 
 	while (1) {
 		struct t_event ev;
-		enum t_status stat = t_poll(&ev);
-		
-		if (stat >= 0) {
-			printf("cmd: ");
-			for (uint32_t i = 0; i < ev.seq_len; ++i) {
-				printf("%02x ", ev.seq_buf[i]);
-			}
-			printf("qcode: %04x\n", ev.qcode);
-			if (ev.n_params) {
-				puts("\tparams:");
-				for (uint32_t i = 0; i < ev.n_params; ++i) {
-					printf("\t%2d: %d\n", i, ev.params[i]);
-				}
-			}
-			if (ev.n_inters) {
-				puts("\tinters:");
-				for (uint32_t i = 0; i < ev.n_inters; ++i) {
-					printf("\t%2d: %02x\n", i, ev.inters[i]);
-				}
-			}
-		}
-		else if (stat != T_EEMPTY) {
-			fprintf(stderr, "t_poll failed: %s\n",
-				t_status_string(stat));
+		t_event_clear(&ev);
+		t_poll(&ev);
+
+		switch (ev.qcode) {
+		case T_QCODE(0, 'h'):
+			t_writez(TR_FG_RED "h was pressed");
+			break;
+		case T_QCODE(0, 'j'):
+			t_writez(TR_FG_GREEN "j was pressed");
+			break;
+		case T_QCODE(0, 'k'):
+			t_writez(TR_FG_YELLOW "k was pressed");
+			break;
+		case T_QCODE(0, 'l'):
+			t_writez(TR_FG_BLUE "l was pressed");
+			break;
 		}
 	}
 
