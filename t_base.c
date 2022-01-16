@@ -188,7 +188,7 @@ t_poll(
 				t_mach_cursor_inc();
 			}
 			else if (0x00 <= g_cursor[0] &&
-							 g_cursor[0] <= 0x1f) {
+			                 g_cursor[0] <= 0x1f) {
 				t_mach_push(TM_CONTROL);
 			}
 			else {
