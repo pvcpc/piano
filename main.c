@@ -1,9 +1,8 @@
-#include <stdint.h>
 #include <stdio.h>
-#include <time.h>
 
 #include "t_base.h"
-#include "t_render.h"
+#include "t_input.h"
+#include "t_output.h"
 
 
 int
