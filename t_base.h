@@ -15,15 +15,12 @@ enum t_event_mod
 	T_CONTROL = 0x04,
 	T_META    = 0x08,
 	T_FUNC    = 0x10,
-	T_TIMER   = 0x20, /* @TODO(max): not implemented */
 };
 
 struct t_event
 {
 	uint8_t  mod;
 	uint8_t  val;
-	double   delta; /* for T_TIMER only, time elapsed since add in seconds */
-	double   elapsed; /* for T_TIMER only, time between last evocation in seconds */
 	uint16_t qcode; /* see T_QCODE macro below */
 
 	uint16_t params [T_PARAMS_MAX];
@@ -80,5 +77,6 @@ enum t_status
 t_writez(
 	char const *data
 );
+
 
 #endif /* INCLUDE_T_BASE_H */

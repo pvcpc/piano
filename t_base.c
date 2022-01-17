@@ -7,11 +7,11 @@
 
 #include "t_base.h"
 
-#define TM_TIMERS_MAX 16
-#define TM_CODES_MAX 16
-
 #define TM_GLOBAL_READ_BUF_SIZE 256
+#define TM_GLOBAL_WRITE_BUF_SIZE 4096
+
 #define TM_SCRATCH_BUF_SIZE 256
+#define TM_CODES_MAX 16
 
 
 enum t_poll_code
@@ -38,6 +38,7 @@ enum t_poll_code
 	/* state change request instructions */
 	TM_RESET,
 	TM_READ,
+	TM_READ_ON_EMPTY,
 
 	/* instructions that exit the machine while loop with return code */
 	TM_HALT_UNKNOWN,
@@ -103,28 +104,9 @@ static uint32_t               g_scratch_p;
 
 static struct t_event         g_ev;
 
-
-static enum t_poll_code
-t_mach_push(
-	enum t_poll_code code
-) {
-	/* @TODO(max): overflow not protected, need proper error handling */
-	return g_codes[g_code_p++] = code;
-}
-
-static enum t_poll_code
-t_mach_pop() 
-{
-	/* @TODO(max): underflow not protected, need proper error handling */
-	return g_codes[--g_code_p];
-}
-
-static uint8_t
-t_mach_cursor_inc() 
-{
-	/* @TODO(max): overflow not protected, need proper error handling */
-	return g_ev.seq_buf[g_ev.seq_len++] = *g_cursor++;
-}
+/* output */
+// static uint8_t                g_write_buf    [TM_GLOBAL_WRITE_BUF_SIZE];
+// static uint8_t               *g_write_cursor = g_write_buf;
 
 void
 t_setup()
@@ -197,6 +179,29 @@ t_viewport_size_get(
 	return T_OK;
 }
 
+/* input */
+static enum t_poll_code
+t_mach_push(
+	enum t_poll_code code
+) {
+	/* @TODO(max): overflow not protected, need proper error handling */
+	return g_codes[g_code_p++] = code;
+}
+
+static enum t_poll_code
+t_mach_pop() 
+{
+	/* @TODO(max): underflow not protected, need proper error handling */
+	return g_codes[--g_code_p];
+}
+
+static uint8_t
+t_mach_cursor_inc() 
+{
+	/* @TODO(max): overflow not protected, need proper error handling */
+	return g_ev.seq_buf[g_ev.seq_len++] = *g_cursor++;
+}
+
 enum t_status
 t_event_clear(
 	struct t_event *event
@@ -207,7 +212,6 @@ t_event_clear(
 
 	return T_OK;
 }
-
 
 enum t_status
 t_poll(
@@ -403,6 +407,12 @@ t_poll(
 			memset(&g_ev, 0, sizeof(struct t_event));
 			t_mach_push(TM_DETERMINE);
 			break;
+
+		case TM_READ_ON_EMPTY:
+			if (available) {
+				break;
+			}
+			/* otherwise, cascade through */
 
 		case TM_READ:
 			g_read_buf_len = read(STDIN_FILENO, g_read_buf, sizeof(g_read_buf));

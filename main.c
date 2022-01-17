@@ -13,6 +13,7 @@ main(void)
 		t_event_clear(&ev);
 		t_poll(&ev);
 
+
 		switch (ev.qcode) {
 		case T_QCODE(0, 'h'):
 			puts("h was pressed");
