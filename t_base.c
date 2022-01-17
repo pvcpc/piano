@@ -8,8 +8,9 @@
 #include "t_base.h"
 
 #define TM_TIMERS_MAX 16
-#define TM_GLOBAL_READ_BUF_SIZE 256
 #define TM_CODES_MAX 16
+
+#define TM_GLOBAL_READ_BUF_SIZE 256
 #define TM_SCRATCH_BUF_SIZE 256
 
 
