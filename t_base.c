@@ -35,10 +35,9 @@ enum t_poll_code
 
 	TM_INTER,
 
-	/* state change request instructions */
+	/* state update instructions */
 	TM_RESET,
 	TM_READ,
-	TM_READ_ON_EMPTY,
 
 	/* instructions that exit the machine while loop with return code */
 	TM_HALT_UNKNOWN,
@@ -400,19 +399,13 @@ t_poll(
 			}
 			break;
 
-		/* interrupts */
+		/* state updates */
 		case TM_RESET:
 			g_code_p = 0;
 			g_scratch_p = 0;
 			memset(&g_ev, 0, sizeof(struct t_event));
 			t_mach_push(TM_DETERMINE);
 			break;
-
-		case TM_READ_ON_EMPTY:
-			if (available) {
-				break;
-			}
-			/* otherwise, cascade through */
 
 		case TM_READ:
 			g_read_buf_len = read(STDIN_FILENO, g_read_buf, sizeof(g_read_buf));
