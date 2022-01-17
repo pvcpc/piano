@@ -3,16 +3,8 @@
 
 #include "t_util.h"
 
-/* common, unparameterized sequences for quick & dirty use with t_writez */
-#define TR_CLRSCRN     "\x1b[2J"
 
-#define TR_CURSOR_SHOW "\x1b[?25h"
-#define TR_CURSOR_HIDE "\x1b[?25l"
-
-/* common, parameterized sequences for quick & dirty use with t_writef */
-#define TR_CURSOR_POS  "\x1b[%d;%dH"
-
-
+/* direct write */
 enum t_status
 t_write(
 	uint8_t const *data,
@@ -23,5 +15,26 @@ enum t_status
 t_writez(
 	char const *data
 );
+
+/* cpu-side, ascii image rendering */
+#define T_FRAME_WIDTH_BLOCK 16
+#define T_FRAME_HEIGHT_BLOCK 16
+
+struct t_cell
+{
+	uint16_t letter     : 8,
+	         foreground : 3,
+	         background : 3;
+};
+
+struct t_frame
+{
+	struct t_cell *cells;
+	uint32_t w;
+	uint32_t h;
+
+	uint32_t _true_w; /* true width of the frame */
+	uint32_t _true_h; /* true height of the frame */
+};
 
 #endif /* INCLUDE_T_OUTPUT_H */

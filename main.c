@@ -10,16 +10,36 @@ main(void)
 {
 	t_setup();
 
+	struct t_frame frame;
+	t_frame_create(&frame, 256, 256);
+
+	t_frame_draw_box(&frame, 0, 0, 16, 8);
+
+	t_cleanup();
+	return 0;
+#if 0
+	int32_t box_x = 0;
+	int32_t box_y = 0; 
+
+	uint32_t front = 0;
+	uint32_t back = 1;
+
+	struct t_frame fb [2];
+	t_frame_create(&fb[front], 256, 256);
+	t_frame_create(&fb[back], 256, 256);
+
 	while (1) {
 		struct t_event ev;
 		t_event_clear(&ev);
-
 		enum t_status stat = t_poll(&ev);
 
-		if (stat >= 0) {
-			printf("elapsed %.2fs — delta %.2fs\n",
-				t_elapsed(), t_delta());
-		}
+		uint32_t w, h;
+		t_viewport_size_get(&w, &h);
+		t_frame_resize(&fb[front], w, h);
+		t_frame_resize(&fb[back], w, h);
+
+		t_frame_clear(&fb[front]);
+		t_frame_draw_box();
 
 		switch (ev.qcode) {
 		case T_QCODE(0, 'h'):
@@ -34,15 +54,14 @@ main(void)
 		case T_QCODE(0, 'l'):
 			puts("l was pressed");
 			break;
-		case T_QCODE(T_TIMER, 0):
-			printf("timer 0: delta %.2fs, elapsed %.2fs\n", ev.delta, ev.elapsed);
-			break;
-		case T_QCODE(T_TIMER, 1):
-			printf("timer 1: delta %.2fs, elapsed %.2fs\n", ev.delta, ev.elapsed);
-			break;
 		}
+
+		front ^= 1;
+		back ^= 1;
 	}
 
+	t_image_destroy(&fb);
 	t_cleanup();
 	return 0;
+#endif
 }
