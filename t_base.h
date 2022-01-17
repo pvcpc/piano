@@ -49,12 +49,6 @@ t_elapsed();
 double
 t_delta();
 
-enum t_status
-t_viewport_size_get(
-	uint32_t *out_w,
-	uint32_t *out_h
-);
-
 /* input */
 enum t_status
 t_event_clear(
@@ -67,6 +61,9 @@ t_poll(
 );
 
 /* output */
+enum t_status
+t_flush();
+
 enum t_status
 t_write(
 	uint8_t const *data,

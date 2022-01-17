@@ -7,8 +7,13 @@
 
 #include "t_base.h"
 
-#define TM_GLOBAL_READ_BUF_SIZE 256
-#define TM_GLOBAL_WRITE_BUF_SIZE 4096
+#ifndef TM_GLOBAL_READ_BUF_SIZE
+#  define TM_GLOBAL_READ_BUF_SIZE 256
+#endif
+
+#ifndef TM_GLOBAL_WRITE_BUF_SIZE
+#  define TM_GLOBAL_WRITE_BUF_SIZE 4096
+#endif
 
 #define TM_SCRATCH_BUF_SIZE 256
 #define TM_CODES_MAX 16
@@ -104,8 +109,9 @@ static uint32_t               g_scratch_p;
 static struct t_event         g_ev;
 
 /* output */
-// static uint8_t                g_write_buf    [TM_GLOBAL_WRITE_BUF_SIZE];
-// static uint8_t               *g_write_cursor = g_write_buf;
+static uint8_t                g_write_buf    [TM_GLOBAL_WRITE_BUF_SIZE];
+static uint8_t               *g_write_cursor = g_write_buf;
+static uint8_t const * const  g_write_end    = g_write_buf + TM_GLOBAL_READ_BUF_SIZE;
 
 void
 t_setup()
@@ -162,20 +168,6 @@ t_delta()
 	g_time_previous.tv_nsec = now.tv_nsec;
 
 	return delta;
-}
-
-enum t_status
-t_viewport_size_get(
-	uint32_t *out_w,
-	uint32_t *out_h
-) {
-	struct winsize ws;
-	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0) return T_EUNKNOWN;
-
-	if (out_w) *out_w = ws.ws_col;
-	if (out_h) *out_h = ws.ws_row;
-
-	return T_OK;
 }
 
 /* input */
@@ -452,6 +444,25 @@ t_poll(
 	return T_ENOOPS;
 }
 
+/* output */
+enum t_status
+t_flush()
+{
+	int stat = write(
+		STDOUT_FILENO, 
+		g_write_buf, 
+		g_write_cursor - g_write_buf
+	);
+
+	if (stat >= 0) {
+		g_write_cursor = g_write_buf;
+		return T_OK;
+	}
+	else {
+		return T_EUNKNOWN;
+	}
+}
+
 enum t_status
 t_write(
 	uint8_t const *data,
@@ -459,9 +470,22 @@ t_write(
 ) {
 	if (!data) return T_ENULL;
 
-	/* @TODO(max): sometime in the future get errno to report proper
-	 * error, although, with stdout, that's not usually an issue. */
-	return write(STDOUT_FILENO, data, length) < 0 ? T_EUNKNOWN : T_OK;
+	enum t_status stat = T_OK;
+
+	while (stat >= 0 && length > 0) {
+		uint32_t const limit = T_MIN(g_write_end - g_write_cursor, length);
+
+		memcpy(g_write_cursor, data, limit);
+		g_write_cursor += limit;
+		data += limit;
+		length -= limit;
+
+		if (g_write_cursor >= g_write_end) {
+			stat = t_flush();
+		}
+	}
+
+	return stat >= 0 ? T_OK : T_EUNKNOWN;
 }
 
 enum t_status

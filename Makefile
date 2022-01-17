@@ -1,5 +1,6 @@
 CC      := /usr/bin/gcc
 CFLAGS  := -Wall -Werror -pedantic
+CFLAGS  += -DTM_GLOBAL_WRITE_BUF_SIZE=1
 
 sources := $(wildcard *.c)
 target  := a.out
