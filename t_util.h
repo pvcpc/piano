@@ -6,6 +6,9 @@
 #define T_MAX(a, b) ((a) >= (b) ? (a) : (b))
 #define T_MIN(a, b) ((a) <= (b) ? (a) : (b))
 #define T_CLAMP(v, lo, hi) T_MIN(T_MAX(v, lo), hi)
+#define T_ABS(v) ((v) < 0 ? -(v) : (v))
+
+#define T_ALIGN_UP(v, boundary) (((v + boundary - 1) / boundary) * boundary)
 
 #define T_ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*arr))
 
@@ -17,7 +20,7 @@
 enum t_status
 {
 	/* err (< 0) */
-	T_ENULL          = -65535,
+	T_ENULL          = -65536,
 	T_EPARAM,
 	T_EMALLOC,
 
