@@ -22,6 +22,11 @@ t_cleanup();
 double
 t_elapsed();
 
+enum t_status
+t_termsize(
+	int32_t *out_width,
+	int32_t *out_height
+);
 
 /* INPUT */
 enum t_poll_mod
@@ -36,7 +41,7 @@ enum t_poll_mod
 
 enum t_poll_special
 {
-	T_F0      = 0,
+	T_F0         = 0,
 	T_F1,
 	T_F2,
 	T_F3,
@@ -50,7 +55,7 @@ enum t_poll_special
 	T_F11,
 	T_F12,
 
-	T_UP      = 65,
+	T_UP         = 65,
 	T_DOWN,
 	T_RIGHT,
 	T_LEFT,

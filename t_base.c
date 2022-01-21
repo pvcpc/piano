@@ -164,6 +164,22 @@ t_elapsed()
 	);
 }
 
+enum t_status
+t_termsize(
+	int32_t *out_width,
+	int32_t *out_height
+) {
+	struct winsize ws;
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0) {
+		return T_EUNKNOWN;
+	}
+
+	if (out_width) *out_width = (int32_t) ws.ws_col;
+	if (out_height) *out_height = (int32_t) ws.ws_row;
+
+	return T_OK;
+}
+
 
 /* INPUT */
 static enum t_poll_code

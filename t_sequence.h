@@ -4,19 +4,25 @@
 #include "t_util.h"
 #include "t_base.h"
 
-#define T_SEQ(Seq)     ((uint8_t const *)(Seq))
+#define T_SEQ(Seq)           ((uint8_t const *)(Seq))
 
-#define T_CURSOR_SHOW  T_SEQ("\x1b[?25h")
-#define T_CURSOR_HIDE  T_SEQ("\x1b[?25l")
-#define T_CURSOR_POS   T_SEQ("\x1b[%;%H")
+#define T_CURSOR_SHOW        T_SEQ("\x1b[?25h")
+#define T_CURSOR_HIDE        T_SEQ("\x1b[?25l")
+#define T_CURSOR_POS         T_SEQ("\x1b[%;%H")
+#define T_CURSOR_UP          T_SEQ("\x1b[%A")
+#define T_CURSOR_DOWN        T_SEQ("\x1b[%B")
+#define T_CURSOR_FORWARD     T_SEQ("\x1b[%C")
+#define T_CURSOR_BACK        T_SEQ("\x1b[%D")
 
 static inline enum t_status
-t_cursor_show() {
+t_cursor_show() 
+{
 	return t_write_p(T_CURSOR_SHOW);
 }
 
 static inline enum t_status
-t_cursor_hide() {
+t_cursor_hide() 
+{
 	return t_write_p(T_CURSOR_HIDE);
 }
 
@@ -26,6 +32,34 @@ t_cursor_pos(
 	int row  /* y */
 ) {
 	return t_write_p(T_CURSOR_POS, row, col);
+}
+
+static inline enum t_status
+t_cursor_up(
+	int amount
+) {
+	return t_write_p(T_CURSOR_UP, amount);
+}
+
+static inline enum t_status
+t_cursor_down(
+	int amount
+) {
+	return t_write_p(T_CURSOR_DOWN, amount);
+}
+
+static inline enum t_status
+t_cursor_forward(
+	int amount
+) {
+	return t_write_p(T_CURSOR_FORWARD, amount);
+}
+
+static inline enum t_status
+t_cursor_back(
+	int amount
+) {
+	return t_write_p(T_CURSOR_BACK, amount);
 }
 
 #define T_CLEAR        T_SEQ("\x1b[2J")
@@ -55,12 +89,14 @@ enum t_color3
 };
 
 static inline enum t_status
-t_clear() {
+t_clear() 
+{
 	return t_write_p(T_CLEAR);
 }
 
 static inline enum t_status
-t_reset() {
+t_reset() 
+{
 	return t_write_p(T_RESET);
 }
 
