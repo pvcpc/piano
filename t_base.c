@@ -16,6 +16,8 @@
 #define T__INTERS_MAX 4
 #define T__SCRATCH_BUFFER_SIZE 256
 
+#define T__NANO_PER_SEC 1000000000
+
 
 enum t_poll_code
 {
@@ -125,8 +127,8 @@ static uint8_t                g_write_buf    [TC_GLOBAL_WRITE_BUFFER_SIZE];
 static uint8_t               *g_write_cursor = g_write_buf;
 static uint8_t const * const  g_write_end    = g_write_buf + TC_GLOBAL_WRITE_BUFFER_SIZE;
 
-static uint8_t               *g_write_f_buf;
-static uint8_t                g_write_f_buf_size;
+static char                  *g_write_f_buf;
+static uint32_t               g_write_f_buf_size;
 
 #ifdef TC_DEBUG_METRICS
 static uint32_t               g_debug_write_nflushed;
@@ -172,6 +174,30 @@ t_elapsed()
 		(now.tv_sec - g_time_genesis.tv_sec) * 1e9 +
 		(now.tv_nsec - g_time_genesis.tv_nsec)
 	);
+}
+
+double
+t_sleep(
+	double seconds
+) {
+	struct timespec start;
+	clock_gettime(CLOCK_MONOTONIC, &start);
+
+	uint64_t nanoseconds = (uint64_t) (seconds * 1e9);
+	struct timespec sleep = {
+		.tv_sec  = nanoseconds / T__NANO_PER_SEC,
+		.tv_nsec = nanoseconds % T__NANO_PER_SEC,
+	};
+	clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep, NULL);
+
+	struct timespec end;
+	clock_gettime(CLOCK_MONOTONIC, &end);
+
+	double r = ( 
+		(end.tv_sec - start.tv_sec) +
+		(end.tv_nsec - start.tv_nsec) * 1e-9
+	);
+	return r;
 }
 
 enum t_status
@@ -538,7 +564,7 @@ t_write(
 
 enum t_status
 t_write_f(
-	uint8_t const *format,
+	char const *format,
 	...
 ) {
 	if (!format) return T_ENULL;
@@ -547,9 +573,9 @@ t_write_f(
 	va_start(vl, format);
 
 	int render_size = vsnprintf(
-		(char *) g_write_f_buf,
+		g_write_f_buf,
 		g_write_f_buf_size,
-		(char const *) format,
+		format,
 		vl
 	);
 
@@ -569,9 +595,9 @@ t_write_f(
 
 		va_start(vl, format);
 		render_size = vsnprintf(
-			(char *) g_write_f_buf,
+			g_write_f_buf,
 			g_write_f_buf_size,
-			(char const *) format,
+			format,
 			vl
 		);
 	}
@@ -581,7 +607,10 @@ t_write_f(
 	g_debug_write_f_nstored += render_size;
 #endif
 
-	return t_write(g_write_f_buf, (uint32_t) render_size);
+	return t_write(
+		(uint8_t const *) g_write_f_buf, 
+		(uint32_t) render_size
+	);
 }
 
 enum t_status

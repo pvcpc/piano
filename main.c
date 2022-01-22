@@ -179,7 +179,7 @@ main(void)
 		t_foreground_256_ex(0, 0, 0);
 		t_background_256_ex(255, 255, 255);
 		t_write_f(
-			(uint8_t const *) "UPS: %.1f Hz, Delta: %.3fms, Flushed: %u, Seq Stored: %u",
+			"UPS: %.1f Hz, Delta: %.3fms, Flushed: %u, Seq Stored: %u",
 			1.0 / tm_delta,
 			1e3 * tm_delta,
 			n_flushed,
@@ -213,7 +213,7 @@ main(void)
 		}
 		tm_old = tm_now;
 
-		usleep(1000);
+		t_sleep(1e-3);
 	}
 
 	t_cleanup();

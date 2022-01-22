@@ -32,6 +32,11 @@ t_cleanup();
 double
 t_elapsed();
 
+double
+t_sleep(
+	double seconds
+);
+
 enum t_status
 t_termsize(
 	int32_t *out_width,
@@ -88,7 +93,7 @@ t_write(
 
 enum t_status
 t_write_f(
-	uint8_t const *format,
+	char const *format,
 	...
 );
 

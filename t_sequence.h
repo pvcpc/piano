@@ -4,7 +4,7 @@
 #include "t_util.h"
 #include "t_base.h"
 
-#define T_SEQ(Seq)           ((uint8_t const *)(Seq))
+#define T_SEQ(Seq)           (Seq)
 
 #define T_CURSOR_SHOW        T_SEQ("\x1b[?25h")
 #define T_CURSOR_HIDE        T_SEQ("\x1b[?25l")
