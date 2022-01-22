@@ -206,6 +206,9 @@ t_frame_rasterize(
 		int32_t delta_y = bb_y - prior_y;
 
 		/* @SPEED(max): take a look into this a bit more */
+		/* @NOTE(max): converting delta_y into \v chars does NOT
+		 * improve throughput significantly.
+		 */
 		/* minimaly optimize byte usage for relocation */
 		if (delta_x && delta_y) {
 			t_cursor_pos(bb_x + 1, bb_y + 1);

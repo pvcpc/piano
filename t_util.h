@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+/* compile-time constants (see README for details):
+ * - TC_DEBUG_METRICS: enable debug metrics where possible.
+ */
+
 #define T_MAX(a, b) ((a) >= (b) ? (a) : (b))
 #define T_MIN(a, b) ((a) <= (b) ? (a) : (b))
 #define T_CLAMP(v, lo, hi) T_MIN(T_MAX(v, lo), hi)

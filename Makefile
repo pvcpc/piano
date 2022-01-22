@@ -7,7 +7,7 @@ target  := a.out
 ifdef NDEBUG
 	CFLAGS += -O2 -march=native -mtune=native -DNDEBUG
 else
-	CFLAGS += -O0 -ggdb
+	CFLAGS += -O0 -ggdb -DTC_DEBUG_METRICS
 endif
 
 $(target): $(sources)

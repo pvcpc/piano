@@ -3,7 +3,17 @@
 
 #include "t_util.h"
 
-/* tunable compile-time constants */
+/* compile-time constants (see README):
+ * - TC_GLOBAL_READ_BUFFER_SIZE (default 256): 
+ *   Set the user-space read(3) buffer size. It does not need to be
+ *   large as `t_setup()` will configure read to be nonblocking, and
+ *   only snippets of user input are expected.
+ *
+ * - TC_GLOBAL_WRITE_BUFFER_SIZE (default 65536):
+ *   Set the user-space write(3) buffer size. It may be desirable to
+ *   have a large write buffer size, especially to push through large
+ *   sequences through the terminal to render images, for instance.
+ */
 #ifndef TC_GLOBAL_READ_BUFFER_SIZE
 #  define TC_GLOBAL_READ_BUFFER_SIZE 256
 #endif
@@ -12,7 +22,7 @@
 #  define TC_GLOBAL_WRITE_BUFFER_SIZE (1u << 16) /* 64K default buffer */
 #endif
 
-
+/* +--- GENERAL ---------------------------------------------------+ */
 void
 t_setup();
 
@@ -28,7 +38,7 @@ t_termsize(
 	int32_t *out_height
 );
 
-/* INPUT */
+/* +--- INPUT -----------------------------------------------------+ */
 enum t_poll_mod
 {
 	T_SHIFT      = 0x01,
@@ -66,8 +76,7 @@ enum t_poll_special
 int32_t
 t_poll();
 
-
-/* OUTPUT */
+/* +--- OUTPUT ----------------------------------------------------+ */
 enum t_status
 t_flush();
 
@@ -78,14 +87,34 @@ t_write(
 );
 
 enum t_status
+t_write_f(
+	uint8_t const *format,
+	...
+);
+
+enum t_status
 t_write_z(
 	char const *string
 );
 
-enum t_status
-t_write_p(
-	uint8_t const *param_sequence,
-	...
-);
+/* +--- DEBUG ----------------------------------------------------+ */
+#ifdef TC_DEBUG_METRICS
+void
+t_debug_write_metrics_clear();
+
+uint32_t
+t_debug_write_nflushed();
+
+uint32_t
+t_debug_write_nstored();
+
+uint32_t
+t_debug_write_f_nstored();
+#else
+#  define t_debug_write_metrics_clear()
+#  define t_debug_write_nstored() 0
+#  define t_debug_write_nflushed() 0
+#  define t_debug_write_p_nstored() 0
+#endif
 
 #endif /* INCLUDE_T_BASE_H */

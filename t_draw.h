@@ -3,7 +3,15 @@
 
 #include "t_util.h"
 
-/* tunable compile-time constants */
+/* compile-time constants (see README):
+ * - TC_CELL_WIDTH_BLOCK (default 16):
+ *   Set the chunk size by which `t_frame` width will actually be
+ *   allocated to minimize malloc(3)/free(3) calls when resizing.
+ *
+ * - TC_CELL_HEIGHT_BLOCK (default 16):
+ *   Set the chunk size by which `t_frame` height will actually be
+ *   allocated to minimize malloc(3)/free(3) calls when resizing.
+ */
 #ifndef TC_CELL_WIDTH_BLOCK
 #  define TC_CELL_WIDTH_BLOCK 16
 #endif
@@ -12,7 +20,7 @@
 #  define TC_CELL_HEIGHT_BLOCK 16
 #endif
 
-/* FRAME */
+/* +--- FRAME DRAWING ---------------------------------------------+ */
 struct t_cell
 {
 	uint8_t ch;
@@ -36,7 +44,6 @@ struct t_frame
 
 enum t_frame_flag
 {
-	T_FRAME_NOFLAG      = 0x00,
 	T_FRAME_SPACEHOLDER = 0x01,
 };
 
@@ -79,5 +86,7 @@ t_frame_rasterize(
 	int32_t x,
 	int32_t y
 );
+
+/* +--- DIRECT DRAWING --------------------------------------------+ */
 
 #endif /* INCLUDE_T_DRAW_H */

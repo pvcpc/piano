@@ -8,22 +8,22 @@
 
 #define T_CURSOR_SHOW        T_SEQ("\x1b[?25h")
 #define T_CURSOR_HIDE        T_SEQ("\x1b[?25l")
-#define T_CURSOR_POS         T_SEQ("\x1b[%;%H")
-#define T_CURSOR_UP          T_SEQ("\x1b[%A")
-#define T_CURSOR_DOWN        T_SEQ("\x1b[%B")
-#define T_CURSOR_FORWARD     T_SEQ("\x1b[%C")
-#define T_CURSOR_BACK        T_SEQ("\x1b[%D")
+#define T_CURSOR_POS         T_SEQ("\x1b[%d;%dH")
+#define T_CURSOR_UP          T_SEQ("\x1b[%dA")
+#define T_CURSOR_DOWN        T_SEQ("\x1b[%dB")
+#define T_CURSOR_FORWARD     T_SEQ("\x1b[%dC")
+#define T_CURSOR_BACK        T_SEQ("\x1b[%dD")
 
 static inline enum t_status
 t_cursor_show() 
 {
-	return t_write_p(T_CURSOR_SHOW);
+	return t_write_f(T_CURSOR_SHOW);
 }
 
 static inline enum t_status
 t_cursor_hide() 
 {
-	return t_write_p(T_CURSOR_HIDE);
+	return t_write_f(T_CURSOR_HIDE);
 }
 
 static inline enum t_status
@@ -31,45 +31,45 @@ t_cursor_pos(
 	int col, /* x */
 	int row  /* y */
 ) {
-	return t_write_p(T_CURSOR_POS, row, col);
+	return t_write_f(T_CURSOR_POS, row, col);
 }
 
 static inline enum t_status
 t_cursor_up(
 	int amount
 ) {
-	return t_write_p(T_CURSOR_UP, amount);
+	return t_write_f(T_CURSOR_UP, amount);
 }
 
 static inline enum t_status
 t_cursor_down(
 	int amount
 ) {
-	return t_write_p(T_CURSOR_DOWN, amount);
+	return t_write_f(T_CURSOR_DOWN, amount);
 }
 
 static inline enum t_status
 t_cursor_forward(
 	int amount
 ) {
-	return t_write_p(T_CURSOR_FORWARD, amount);
+	return t_write_f(T_CURSOR_FORWARD, amount);
 }
 
 static inline enum t_status
 t_cursor_back(
 	int amount
 ) {
-	return t_write_p(T_CURSOR_BACK, amount);
+	return t_write_f(T_CURSOR_BACK, amount);
 }
 
 #define T_CLEAR        T_SEQ("\x1b[2J")
 #define T_RESET        T_SEQ("\x1b[0m")
 
-#define T_FG3          T_SEQ("\x1b[%m")
-#define T_BG3          T_SEQ("\x1b[%m")
-#define T_FBG3         T_SEQ("\x1b[%;%m")
-#define T_FG256        T_SEQ("\x1b[38;5;%m")
-#define T_BG256        T_SEQ("\x1b[48;5;%m")
+#define T_FG3          T_SEQ("\x1b[%dm")
+#define T_BG3          T_SEQ("\x1b[%dm")
+#define T_FBG3         T_SEQ("\x1b[%d;%dm")
+#define T_FG256        T_SEQ("\x1b[38;5;%dm")
+#define T_BG256        T_SEQ("\x1b[48;5;%dm")
 
 #define T_RGB(r, g, b) ( (((b) & 0xff) << 16) | (((g) & 0xff) << 8) | ((r) & 0xff) )
 #define T_RED(rgb) ((rgb) & 0xff)
@@ -91,27 +91,27 @@ enum t_color3
 static inline enum t_status
 t_clear() 
 {
-	return t_write_p(T_CLEAR);
+	return t_write_f(T_CLEAR);
 }
 
 static inline enum t_status
 t_reset() 
 {
-	return t_write_p(T_RESET);
+	return t_write_f(T_RESET);
 }
 
 static inline enum t_status
 t_foreground_3(
 	enum t_color3 color
 ) {
-	return t_write_p(T_FG3, color + 30);
+	return t_write_f(T_FG3, color + 30);
 }
 
 static inline enum t_status
 t_background_3(
 	enum t_color3 color
 ) {
-	return t_write_p(T_BG3, color + 40);
+	return t_write_f(T_BG3, color + 40);
 }
 
 static inline enum t_status
@@ -119,7 +119,7 @@ t_theme_3(
 	enum t_color3 fg_color,
 	enum t_color3 bg_color
 ) {
-	return t_write_p(T_FBG3, fg_color + 30, bg_color + 40);
+	return t_write_f(T_FBG3, fg_color + 30, bg_color + 40);
 }
 
 static int
@@ -156,7 +156,7 @@ static inline enum t_status
 t_foreground_256(
 	int rgb
 ) {
-	return t_write_p(T_FG256, t_rgb_compress_256(rgb));
+	return t_write_f(T_FG256, t_rgb_compress_256(rgb));
 }
 #define t_foreground_256_ex(r, g, b) t_foreground_256(T_RGB(r, g, b))
 
@@ -164,7 +164,7 @@ static inline enum t_status
 t_background_256(
 	int rgb
 ) {
-	return t_write_p(T_BG256, t_rgb_compress_256(rgb));
+	return t_write_f(T_BG256, t_rgb_compress_256(rgb));
 }
 #define t_background_256_ex(r, g, b) t_background_256(T_RGB(r, g, b))
 

@@ -38,6 +38,15 @@ enum keyboard_note
 #define KEYBOARD_OCTAVES(Nm) (Nm * KEYBOARD_OCTAVE_NOTES)
 #define KEYBOARD_ADDRESS(Octave, Note) (Octave * KEYBOARD_NUM_OCTAVE_NOTES + Note)
 
+static char const EMPTY_FRAME [] =
+	"               \n"
+	"               \n"
+	"               \n"
+	"               \n"
+	"               \n"
+	"               \n"
+	"               \n";
+
 static char const OCTAVE_FRAME [] =
 	"+-------------+\n"
 	"|| | ||| | | ||\n"
@@ -142,32 +151,53 @@ main(void)
 
 	double tm_old = t_elapsed();
 	while (1) {
-		double tm_now = t_elapsed();
-		char ups_string [32] = {0};
-		snprintf(ups_string, 31, "UPS: %.1f Hz", 1.0 / (tm_now - tm_old));
 
-		int32_t poll_code = t_poll();
+		double tm_now = t_elapsed();
+		double tm_delta = tm_now - tm_old;
+		
+#if 0
+		char ups_string [1024] = {0};
+		snprintf(ups_string, 1023, 
+			"UPS: %.1f Hz, Delta: %.3fms, Flushed: %u, Seq Stored: %u", 
+			1.0 / tm_delta,
+			1e3 * tm_delta,
+			t_debug_write_nflushed(),
+			t_debug_write_f_nstored()
+		);
+#endif
 
 		int32_t vp_width, vp_height;
 		t_termsize(&vp_width, &vp_height);
 
+		uint32_t n_flushed = t_debug_write_nflushed();
+		uint32_t n_stored = t_debug_write_f_nstored();
+
 		t_reset();
 		t_clear();
 
+		t_cursor_pos(1, vp_height);
+		t_foreground_256_ex(0, 0, 0);
+		t_background_256_ex(255, 255, 255);
+		t_write_f(
+			(uint8_t const *) "UPS: %.1f Hz, Delta: %.3fms, Flushed: %u, Seq Stored: %u",
+			1.0 / tm_delta,
+			1e3 * tm_delta,
+			n_flushed,
+			n_stored
+		);
+		t_debug_write_metrics_clear();
+
 		struct t_frame frame;
 		t_frame_create_pattern(
-			&frame, OCTAVE_FRAME, T_FRAME_SPACEHOLDER
+			&frame,	OCTAVE_FRAME, T_FRAME_SPACEHOLDER
 		);
 		t_frame_paint(&frame, T_RGB(0, 0, 0), T_RGB(255, 255, 255));
 		t_frame_rasterize(&frame, 0, 0);
 		t_frame_destroy(&frame);
 
-		t_cursor_pos(1, 1);
-		t_write_z(ups_string);
-
 		t_flush();
 
-		switch (poll_code) {
+		switch (t_poll()) {
 		case T_POLL_CODE(0, 'h'):
 			puts("h was pressed");
 			break;
@@ -182,6 +212,8 @@ main(void)
 			break;
 		}
 		tm_old = tm_now;
+
+		usleep(1000);
 	}
 
 	t_cleanup();

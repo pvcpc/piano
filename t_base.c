@@ -2,6 +2,8 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdarg.h>
 #include <string.h>
@@ -118,13 +120,21 @@ static uint8_t                g_mod;
 static uint8_t                g_val;
 static bool                   g_is_escape;
 
-/* OUTPUT */
 /* @SPEED(max): check g_write_buf alignment for vectorized memcpy */
 static uint8_t                g_write_buf    [TC_GLOBAL_WRITE_BUFFER_SIZE];
 static uint8_t               *g_write_cursor = g_write_buf;
 static uint8_t const * const  g_write_end    = g_write_buf + TC_GLOBAL_WRITE_BUFFER_SIZE;
 
+static uint8_t               *g_write_f_buf;
+static uint8_t                g_write_f_buf_size;
 
+#ifdef TC_DEBUG_METRICS
+static uint32_t               g_debug_write_nflushed;
+static uint32_t               g_debug_write_nstored;
+static uint32_t               g_debug_write_f_nstored;
+#endif
+
+/* +--- GENERAL ---------------------------------------------------+ */
 void
 t_setup()
 {
@@ -180,8 +190,7 @@ t_termsize(
 	return T_OK;
 }
 
-
-/* INPUT */
+/* +--- INPUT -----------------------------------------------------+ */
 static enum t_poll_code
 t_mach_push(
 	enum t_poll_code code
@@ -444,21 +453,52 @@ t_poll()
 	return T_ENOOPS;
 }
 
+/* +--- OUTPUT ----------------------------------------------------+ */
+#ifdef TC_DEBUG_METRICS
+void
+t_debug_write_metrics_clear()
+{
+	g_debug_write_nflushed   = 0;
+	g_debug_write_nstored    = 0;
+	g_debug_write_f_nstored  = 0;
+}
 
-/* output */
+uint32_t
+t_debug_write_nflushed()
+{
+	return g_debug_write_nflushed;
+}
+
+uint32_t
+t_debug_write_nstored()
+{
+	return g_debug_write_nstored;
+}
+
+uint32_t
+t_debug_write_f_nstored()
+{
+	return g_debug_write_f_nstored;
+}
+#endif /* TC_DEBUG_METRICS */
+
 enum t_status
 t_flush()
 {
 	enum t_status stat = T_OK;
 	if (g_write_cursor > g_write_buf) {
 		/* @TODO(max): more specific error than  T_EUNKNOWN? */
+		uint32_t const limit = g_write_cursor - g_write_buf;
 		stat = write(
 			STDOUT_FILENO,
 			g_write_buf,
-			g_write_cursor - g_write_buf
+			limit
 		) < 0 ? T_EUNKNOWN : T_OK;
 
 		if (stat >= 0) {
+#ifdef TC_DEBUG_METRICS
+			g_debug_write_nflushed += limit;
+#endif
 			g_write_cursor = g_write_buf;
 		}
 	}
@@ -485,11 +525,63 @@ t_write(
 		buffer += limit;
 		length -= limit;
 
-		if (g_write_cursor >= g_write_buf) {
+#ifdef TC_DEBUG_METRICS
+		g_debug_write_nstored += limit;
+#endif
+
+		if (g_write_cursor >= g_write_end) {
 			stat = t_flush();
 		}
 	}
 	return stat;
+}
+
+enum t_status
+t_write_f(
+	uint8_t const *format,
+	...
+) {
+	if (!format) return T_ENULL;
+
+	va_list vl;
+	va_start(vl, format);
+
+	int render_size = vsnprintf(
+		(char *) g_write_f_buf,
+		g_write_f_buf_size,
+		(char const *) format,
+		vl
+	);
+
+	if (render_size < 0) {
+		/* @TODO(max): more specific error code. */
+		return T_EUNKNOWN;
+	}
+
+	if (render_size >= g_write_f_buf_size) {
+		/* align for vectorized memcpy */
+		uint32_t const target_size = T_ALIGN_UP(render_size, 16);
+		if ((posix_memalign((void **) &g_write_f_buf, 16, target_size)) != 0) {
+			/* TODO(max): EMALLOC or more specific error code? */
+			return T_EMALLOC;
+		}
+		g_write_f_buf_size = target_size;
+
+		va_start(vl, format);
+		render_size = vsnprintf(
+			(char *) g_write_f_buf,
+			g_write_f_buf_size,
+			(char const *) format,
+			vl
+		);
+	}
+	va_end(vl);
+
+#ifdef TC_DEBUG_METRICS
+	g_debug_write_f_nstored += render_size;
+#endif
+
+	return t_write(g_write_f_buf, (uint32_t) render_size);
 }
 
 enum t_status
@@ -499,43 +591,4 @@ t_write_z(
 	if (!string) return T_ENULL;
 
 	return t_write((uint8_t const *) string, strlen(string));
-}
-
-enum t_status
-t_write_p(
-	uint8_t const *param_sequence,
-	...
-) {
-	if (!param_sequence) return T_ENULL;
-
-	/* @SPEED(max): check alignment for vectorized memcpy */
-	uint8_t tmp [32];
-	uint32_t tmp_p = 0;
-
-	uint8_t dec [16]; /* decimal conversion buffer */
-	uint32_t dec_p = 0;
-
-	va_list vl;
-	va_start(vl, param_sequence);
-
-	while (*param_sequence) {
-		if (*param_sequence == '%') {
-			/* render parameter as decimal */
-			int arg = va_arg(vl, int) & 0xffff;
-			while (arg > 0) {
-				dec[dec_p++] = (arg % 10) + '0';
-				arg /= 10;
-			}
-			while (dec_p) {
-				tmp [tmp_p++] = dec[--dec_p];
-			}
-		}
-		else {
-			tmp[tmp_p++] = *param_sequence;
-		}
-		++param_sequence;
-	}
-	va_end(vl);
-
-	return t_write(tmp, tmp_p);
 }
