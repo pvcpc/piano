@@ -143,72 +143,32 @@ static char const *const KEY_OVERLAYS [] = {
 };
 
 
+struct t_frame framebuffer;
+
+
 int
 main(void)
 {
 	t_setup();
-	t_cursor_hide();
 
-	int run = 1;
-	double tm_old = t_elapsed();
+	t_frame_create(&framebuffer, 0, 0);
 
-	while (run) {
-		double tm_now = t_elapsed();
-		double tm_delta = tm_now - tm_old;
-
-		int32_t vp_width, vp_height;
-		t_termsize(&vp_width, &vp_height);
-
-		uint32_t n_flushed = t_debug_write_nflushed();
-		uint32_t n_stored = t_debug_write_f_nstored();
-
-		t_reset();
-		t_clear();
-
-		t_cursor_pos(1, vp_height);
-		t_foreground_256_ex(0, 0, 0);
-		t_background_256_ex(255, 255, 255);
-		t_write_f(
-			"UPS: %.1f Hz, Delta: %.3fms, Flushed: %u, Seq Stored: %u",
-			1.0 / tm_delta,
-			1e3 * tm_delta,
-			n_flushed,
-			n_stored
-		);
-		t_debug_write_metrics_clear();
+	while (1) {
 
 		struct t_frame frame;
-		t_frame_create_pattern(
-			&frame,	T_FRAME_SPACEHOLDER, OCTAVE_FRAME
-		);
-		t_frame_paint(&frame, T_RGB(0, 0, 0), T_RGB(255, 255, 255));
+		t_frame_create_pattern(&frame, 0, OCTAVE_FRAME);
+		t_frame_paint(&frame, T_WASHED, T_WASHED);
+		frame.grid[0].fg_rgb = T_RGB(0, 0, 0);
+		frame.grid[0].bg_rgb = T_RGB(255, 255, 255);
 		t_frame_rasterize(&frame, 0, 0);
 		t_frame_destroy(&frame);
-
 		t_flush();
 		t_sleep(1e-3);
 
 		switch (t_poll()) {
-		case T_POLL_CODE(0, 'h'):
-			puts("h was pressed");
-			break;
-		case T_POLL_CODE(0, 'j'):
-			puts("j was pressed");
-			break;
-		case T_POLL_CODE(0, 'k'):
-			puts("k was pressed");
-			break;
-		case T_POLL_CODE(0, 'l'):
-			puts("l was pressed");
-			break;
-		case T_POLL_CODE(0, 'Q'):
-			run = 0;
-			break;
 		}
-		tm_old = tm_now;
 	}
 
-	t_cursor_show();
 	t_cleanup();
 	return 0;
 }

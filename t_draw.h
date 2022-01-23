@@ -24,12 +24,10 @@
 struct t_cell
 {
 	uint8_t ch;
-	struct {
-		uint8_t r, g, b;
-	} fg;
-	struct {
-		uint8_t r, g, b;
-	} bg;
+
+	/* see t_sequence.h for how color is packed */
+	int32_t fg_rgb; 
+	int32_t bg_rgb;
 };
 
 struct t_frame
@@ -85,18 +83,23 @@ t_frame_clear(
 );
 
 enum t_status
+t_frame_paint(
+	struct t_frame *dst,
+	int fg_rgb,
+	int bg_rgb
+);
+
+enum t_status
+t_frame_wash(
+	struct t_frame *dst
+);
+
+enum t_status
 t_frame_blend(
 	struct t_frame *dst,
 	struct t_frame *src,
 	int32_t x,
 	int32_t y
-);
-
-enum t_status
-t_frame_paint(
-	struct t_frame *dst,
-	int fg_rgb,
-	int bg_rgb
 );
 
 enum t_status

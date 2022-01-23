@@ -1,0 +1,3 @@
+- play around with /dev/pts or /dev/tty* to see if we can support an
+  applications with multiple input/output terminals to emulate
+  multi-window displays.

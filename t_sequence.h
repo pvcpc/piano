@@ -71,10 +71,12 @@ t_cursor_back(
 #define T_FG256        T_SEQ("\x1b[38;5;%dm")
 #define T_BG256        T_SEQ("\x1b[48;5;%dm")
 
+/* colors (24-bit packed RGB, -1 = default/reset/washed color) */
 #define T_RGB(r, g, b) ( (((b) & 0xff) << 16) | (((g) & 0xff) << 8) | ((r) & 0xff) )
 #define T_RED(rgb) ((rgb) & 0xff)
 #define T_GREEN(rgb) (((rgb) >> 8) & 0xff)
 #define T_BLUE(rgb) (((rgb) >> 16) & 0xff)
+#define T_WASHED -1
 
 enum t_color3
 {
@@ -156,7 +158,8 @@ static inline enum t_status
 t_foreground_256(
 	int rgb
 ) {
-	return t_write_f(T_FG256, t_rgb_compress_256(rgb));
+	int comp = t_rgb_compress_256(rgb);
+	return t_write_f(T_FG256, comp);
 }
 #define t_foreground_256_ex(r, g, b) t_foreground_256(T_RGB(r, g, b))
 
