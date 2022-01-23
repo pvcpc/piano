@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include <fcntl.h>
 #include <unistd.h>
 
 #include "t_base.h"
@@ -148,23 +147,14 @@ int
 main(void)
 {
 	t_setup();
+	t_cursor_hide();
 
+	int run = 1;
 	double tm_old = t_elapsed();
-	while (1) {
 
+	while (run) {
 		double tm_now = t_elapsed();
 		double tm_delta = tm_now - tm_old;
-		
-#if 0
-		char ups_string [1024] = {0};
-		snprintf(ups_string, 1023, 
-			"UPS: %.1f Hz, Delta: %.3fms, Flushed: %u, Seq Stored: %u", 
-			1.0 / tm_delta,
-			1e3 * tm_delta,
-			t_debug_write_nflushed(),
-			t_debug_write_f_nstored()
-		);
-#endif
 
 		int32_t vp_width, vp_height;
 		t_termsize(&vp_width, &vp_height);
@@ -189,13 +179,14 @@ main(void)
 
 		struct t_frame frame;
 		t_frame_create_pattern(
-			&frame,	OCTAVE_FRAME, T_FRAME_SPACEHOLDER
+			&frame,	T_FRAME_SPACEHOLDER, OCTAVE_FRAME
 		);
 		t_frame_paint(&frame, T_RGB(0, 0, 0), T_RGB(255, 255, 255));
 		t_frame_rasterize(&frame, 0, 0);
 		t_frame_destroy(&frame);
 
 		t_flush();
+		t_sleep(1e-3);
 
 		switch (t_poll()) {
 		case T_POLL_CODE(0, 'h'):
@@ -210,12 +201,14 @@ main(void)
 		case T_POLL_CODE(0, 'l'):
 			puts("l was pressed");
 			break;
+		case T_POLL_CODE(0, 'Q'):
+			run = 0;
+			break;
 		}
 		tm_old = tm_now;
-
-		t_sleep(1e-3);
 	}
 
+	t_cursor_show();
 	t_cleanup();
 	return 0;
 }

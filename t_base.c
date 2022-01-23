@@ -160,6 +160,11 @@ t_setup()
 void
 t_cleanup()
 {
+	/* flush any remaining output in case things like `t_cursor_show()`
+	 * are called at the end to restore defaults.
+	 */
+	t_flush();
+
 	/* reset terminal settings back to normal */
 	tcsetattr(STDIN_FILENO, TCSANOW, &g_tios_old);
 }

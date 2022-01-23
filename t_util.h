@@ -4,7 +4,8 @@
 #include <stdint.h>
 
 /* compile-time constants (see README for details):
- * - TC_DEBUG_METRICS: enable debug metrics where possible.
+ * - TC_DEBUG_METRICS (default <undefined>): 
+ *   Enable debug metrics where possible.
  */
 
 #define T_MAX(a, b) ((a) >= (b) ? (a) : (b))
@@ -14,11 +15,11 @@
 
 #define T_ALIGN_UP(v, boundary) (((v + boundary - 1) / boundary) * boundary)
 
-#define T_ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*arr))
-
 #define T_KILO(N) (N * (1 << 10))
 #define T_MEGA(N) (N * (1 << 10))
 #define T_GIGA(N) (N * (1 << 10))
+
+#define T_ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*arr))
 
 
 enum t_status

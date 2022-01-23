@@ -13,7 +13,7 @@ t__frame_cell_at(
 	uint32_t x,
 	uint32_t y
 ) {
-	return &frame->grid[(y * frame->width) + x];
+	return &frame->grid[(y * frame->_true_width) + x];
 }
 
 enum t_status
@@ -24,9 +24,15 @@ t_frame_create(
 ) {
 	if (!out || !width || !height) return T_ENULL;
 
-	out->grid = calloc(width * height, sizeof(struct t_frame));
+	uint32_t const true_width = T_ALIGN_UP(width, TC_CELL_BLOCK_WIDTH);
+	uint32_t const true_height = T_ALIGN_UP(height, TC_CELL_BLOCK_HEIGHT);
+
+	out->grid = calloc(true_width * true_height, sizeof(struct t_cell));
 	out->width = width;
 	out->height = height;
+
+	out->_true_width = true_width;
+	out->_true_height = true_height;
 
 	return T_OK;
 }
@@ -34,8 +40,8 @@ t_frame_create(
 enum t_status
 t_frame_create_pattern(
 	struct t_frame *out,
-	char const *pattern,
-	enum t_frame_flag flags
+	enum t_frame_flag flags,
+	char const *pattern
 ) {
 	if (!out || !pattern) return T_ENULL;
 
@@ -113,18 +119,52 @@ t_frame_destroy(
 }
 
 enum t_status
+t_frame_resize(
+	struct t_frame *dst,
+	uint32_t n_width,
+	uint32_t n_height
+) {
+	if (!dst || !n_width || !n_height) return T_ENULL;
+
+	uint32_t const n_true_width = T_ALIGN_UP(n_width, TC_CELL_BLOCK_WIDTH);
+	uint32_t const n_true_height = T_ALIGN_UP(n_height, TC_CELL_BLOCK_HEIGHT);
+
+	uint32_t const old_true_bufsz = 
+		sizeof(struct t_cell) * dst->_true_width * dst->_true_height;
+	uint32_t const new_true_bufsz = 
+		sizeof(struct t_cell) * n_true_width * n_true_height;
+
+	if (old_true_bufsz < new_true_bufsz) {
+		dst->grid = realloc(dst->grid, new_true_bufsz);
+		if (!dst->grid) {
+			return T_EMALLOC;
+		}
+		dst->width = n_width;
+		dst->height = n_height;
+
+		dst->_true_width = n_true_width;
+		dst->_true_height = n_true_height;
+	}
+	return T_OK;
+}
+
+enum t_status
 t_frame_clear(
 	struct t_frame *frame
 ) {
 	if (!frame) return T_ENULL;
 
-	memset(frame->grid, 0, sizeof(struct t_cell) * (frame->width * frame->height));
+	memset(frame->grid, 0,
+		(sizeof(struct t_cell) * 
+		 frame->_true_width    * 
+		 frame->_true_height)
+	);
 
 	return T_OK;
 }
 
 enum t_status
-t_frame_overlay(
+t_frame_blend(
 	struct t_frame *dst,
 	struct t_frame *src,
 	int32_t x,
@@ -150,7 +190,9 @@ t_frame_paint(
 			bg_b = T_BLUE(bg_rgb);
 
 	for (uint32_t i = 0; i < (dst->width * dst->height); ++i) {
-		struct t_cell *cell = &dst->grid[i];
+		uint32_t const x = i % dst->width;
+		uint32_t const y = i / dst->width;
+		struct t_cell *cell = t__frame_cell_at(dst, x, y);
 		if (fg_rgb >= 0) {
 			cell->fg.r = fg_r;
 			cell->fg.g = fg_g;
