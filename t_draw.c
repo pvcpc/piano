@@ -7,6 +7,18 @@
 #include "t_draw.h"
 
 
+static inline void
+t__frame_zero(
+	struct t_frame *frame
+) {
+	frame->grid = NULL;
+	frame->width = 0;
+	frame->height = 0;
+
+	frame->_true_width = 0;
+	frame->_true_height = 0;
+}
+
 static inline struct t_cell *
 t__frame_cell_at(
 	struct t_frame *frame,
@@ -19,17 +31,11 @@ t__frame_cell_at(
 enum t_status
 t_frame_create(
 	struct t_frame *out,
-	uint32_t width,
-	uint32_t height
+	int32_t width,
+	int32_t height
 ) {
 	if (!out) return T_ENULL;
-
-	out->grid = NULL;
-	out->width = 0;
-	out->height = 0;
-
-	out->_true_width = 0;
-	out->_true_height = 0;
+	t__frame_zero(out);
 
 	return t_frame_resize(out, width, height);
 }
@@ -40,6 +46,9 @@ t_frame_create_pattern(
 	enum t_frame_flag flags,
 	char const *pattern
 ) {
+	if (!out) return T_ENULL;
+	t__frame_zero(out);
+
 	if (!out || !pattern) return T_ENULL;
 
 	char const *iter = pattern;
@@ -113,19 +122,21 @@ t_frame_destroy(
 	if (!frame) return;
 
 	free((void *) frame->grid);
+	t__frame_zero(frame);
 }
 
 enum t_status
 t_frame_resize(
 	struct t_frame *dst,
-	uint32_t n_width,
-	uint32_t n_height
+	int32_t n_width,
+	int32_t n_height
 ) {
 	if (!dst) return T_ENULL;
+	if (n_width < 0 || n_height < 0) return T_EPARAM;
 	if (!n_width || !n_height) return T_OK;
 
-	uint32_t const n_true_width = T_ALIGN_UP(n_width, TC_CELL_BLOCK_WIDTH);
-	uint32_t const n_true_height = T_ALIGN_UP(n_height, TC_CELL_BLOCK_HEIGHT);
+	int32_t const n_true_width = T_ALIGN_UP(n_width, TC_CELL_BLOCK_WIDTH);
+	int32_t const n_true_height = T_ALIGN_UP(n_height, TC_CELL_BLOCK_HEIGHT);
 
 	uint32_t const old_true_bufsz = 
 		sizeof(struct t_cell) * dst->_true_width * dst->_true_height;
@@ -210,11 +221,11 @@ t_frame_rasterize(
 	int32_t prior_x = -65535;
 	int32_t prior_y = -65535;
 
-	int32_t prior_fg = -1;
-	int32_t prior_bg = -1;
+	int32_t prior_fg = T_WASHED;
+	int32_t prior_bg = T_WASHED;
 
-	for (uint32_t bb_y = bb_y0; bb_y < bb_y1; ++bb_y) {
-		for (uint32_t bb_x = bb_x0; bb_x < bb_x1; ++bb_x) {
+	for (int32_t bb_y = bb_y0; bb_y < bb_y1; ++bb_y) {
+		for (int32_t bb_x = bb_x0; bb_x < bb_x1; ++bb_x) {
 
 			struct t_cell *cell = t__frame_cell_at(frame, bb_x - x, bb_y - y);
 			if (!cell->ch) {
@@ -250,10 +261,10 @@ t_frame_rasterize(
 			prior_y = bb_y;
 			
 			/* COLOR */
-			if (cell->fg_rgb < 0 || cell->bg_rgb < 0) {
+			if (cell->fg_rgb == T_WASHED || cell->bg_rgb == T_WASHED) {
 				t_reset();
-				prior_fg = -1;
-				prior_bg = -1;
+				prior_fg = T_WASHED;
+				prior_bg = T_WASHED;
 			}
 			if (cell->fg_rgb >= 0 && cell->fg_rgb != prior_fg) {
 				prior_fg = cell->fg_rgb;

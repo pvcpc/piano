@@ -1,6 +1,7 @@
 #ifndef INCLUDE_T_UTIL_H
 #define INCLUDE_T_UTIL_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 /* compile-time constants (see README for details):
@@ -44,24 +45,24 @@ t_status_string(
 	switch (stat) {
 	/* error */
 	case T_ENULL:
-		return "t_enull";
+		return "T_ENULL";
 	case T_EPARAM:
 		return "T_EPARAM";
 	case T_EMALLOC:
 		return "T_EMALLOC";
 	
 	case T_EUNKNOWN:
-		return "t_eunknown";
+		return "T_EUNKNOWN";
 	case T_EEMPTY:
-		return "t_eempty";
+		return "T_EEMPTY";
 	case T_ENOOPS:
-		return "t_enoops";
+		return "T_ENOOPS";
 	
 	/* info */
 	case T_OK:
-		return "t_ok";
+		return "T_OK";
 	default:
-		return "undefined_status_code";
+		return "UNDEFINED_STATUS_CODE";
 	}
 }
 

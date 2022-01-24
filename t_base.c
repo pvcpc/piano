@@ -1,6 +1,7 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
+#include <poll.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -443,6 +444,16 @@ t_poll()
 			break;
 
 		case TM_READ:
+			/* poll if required */
+			if (wait) {
+				struct pollfd fd = {
+					.fd = STDIN_FILENO,
+					.events = POLLIN | POLLPRI
+				};
+				poll(&fd, 1, -1); /* don't care about return value */
+			}
+
+			/* proceed to read */
 			g_read_buf_len = read(STDIN_FILENO, g_read_buf, sizeof(g_read_buf));
 			g_read_cursor = g_read_buf;
 			g_read_end = g_read_buf + g_read_buf_len;

@@ -23,7 +23,7 @@
 /* +--- FRAME DRAWING ---------------------------------------------+ */
 struct t_cell
 {
-	uint8_t ch;
+	char ch;
 
 	/* see t_sequence.h for how color is packed */
 	int32_t fg_rgb; 
@@ -33,10 +33,10 @@ struct t_cell
 struct t_frame
 {
 	struct t_cell *grid;
-	uint32_t width;
-	uint32_t height;
+	int32_t width;
+	int32_t height;
 
-	/* should not be accessed */
+	/* internal */
 	uint32_t _true_width;
 	uint32_t _true_height;
 };
@@ -44,18 +44,20 @@ struct t_frame
 enum t_frame_flag
 {
 	/* pattern flags */
-	T_FRAME_SPACEHOLDER = 0x01,
+	T_FRAME_SPACEHOLDER = 0x0010,
 
 	/* blend flags */
-	T_FRAME_DSTOVER     = 0x01,
-	T_FRAME_SRCOVER     = 0x02,
+	T_FRAME_DSTOVER     = 0x0100,
+	T_FRAME_SRCOVER     = 0x0200,
+	T_FRAME_PAINTOVER   = 0x0400,
+	T_FRAME_PAINTWASHED = 0x0800,
 };
 
 enum t_status
 t_frame_create(
 	struct t_frame *dst,
-	uint32_t width,
-	uint32_t height
+	int32_t width,
+	int32_t height
 );
 
 enum t_status
@@ -73,8 +75,8 @@ t_frame_destroy(
 enum t_status
 t_frame_resize(
 	struct t_frame *dst,
-	uint32_t n_width,
-	uint32_t n_height
+	int32_t n_width,
+	int32_t n_height
 );
 
 enum t_status

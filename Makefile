@@ -1,5 +1,5 @@
 CC      := /usr/bin/gcc
-CFLAGS  := -Wall -pedantic
+CFLAGS  := -std=gnu99 -Wall -pedantic
 
 sources := $(wildcard *.c)
 target  := a.out

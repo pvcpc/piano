@@ -1,3 +1,14 @@
+- separate escape code parser from t_base.c into t_sequence.h/c
+
+- separate color utilities/macros from t_sequence.h to t_draw.h/c,
+  and simplify t_foreground_256 and t_background_256 to take in a
+  uint8_t instead of int32_t w/o rgb compression (that should be done
+  by a client.)
+
 - play around with /dev/pts or /dev/tty* to see if we can support an
   applications with multiple input/output terminals to emulate
   multi-window displays.
+	- This requires that subordinate terminals have no open reading
+	  file descriptors (i.e., shells) as those split the user input 
+	  stream into the shell's STDIN and whatever FD we have open
+	  to read from. This might be an issue for many terminals.

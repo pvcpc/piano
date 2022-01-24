@@ -79,7 +79,9 @@ enum t_poll_special
 #define T_POLL_CODE(Mod, Val) (((Mod) << 8) | (Val))
 
 int32_t
-t_poll();
+t_poll(
+	bool wait
+);
 
 /* +--- OUTPUT ----------------------------------------------------+ */
 enum t_status
