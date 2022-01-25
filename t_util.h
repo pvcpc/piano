@@ -14,11 +14,11 @@
 #define T_CLAMP(v, lo, hi) T_MIN(T_MAX(v, lo), hi)
 #define T_ABS(v) ((v) < 0 ? -(v) : (v))
 
-#define T_ALIGN_UP(v, boundary) (((v + boundary - 1) / boundary) * boundary)
+#define T_ALIGN_UP(v, bnd) ((((v) + (bnd) - 1) / (bnd)) * (bnd))
 
 #define T_KILO(N) (N * (1 << 10))
-#define T_MEGA(N) (N * (1 << 10))
-#define T_GIGA(N) (N * (1 << 10))
+#define T_MEGA(N) (N * (1 << 20))
+#define T_GIGA(N) (N * (1 << 30))
 
 #define T_ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*arr))
 
@@ -33,6 +33,8 @@ enum t_status
 	T_EUNKNOWN,
 	T_EEMPTY,
 	T_ENOOPS,
+
+	T_EOVERFLO,
 
 	/* info (>= 0) */
 	T_OK             =  0,
@@ -57,6 +59,9 @@ t_status_string(
 		return "T_EEMPTY";
 	case T_ENOOPS:
 		return "T_ENOOPS";
+	
+	case T_EOVERFLO:
+		return "T_EOVERFLO";
 	
 	/* info */
 	case T_OK:

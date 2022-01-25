@@ -69,17 +69,30 @@ note_string(
 	}
 }
 
+/* midi spec: C(-1) = 0, G(9) = 127 */
+#define MIDI_INDEX(note, octave) (((octave) + 1) * NOTE_COUNT + (note))
+#define INDEX_NOTE(index) ((index) % NOTE_COUNT)
+#define INDEX_OCTAVE(index) ((index) / NOTE_COUNT - 1)
+
+#define MIDI_INDEX_MAX 127
+#define MIDI_INDEX_MASK 0x7f
+
+struct keyboard__tone
+{
+	/* internal */
+	double                _tm_activated;
+	double                _tm_sustain;
+	uint8_t               _midi_note_index;
+}
+
 struct keyboard
 {
-	uint8_t midi_index_start;
-	uint8_t midi_index_end;
+	uint8_t               midi_index_start;
+	uint8_t               midi_index_end;
 
 	/* internal */
-	uint32_t _tone_pointer;
-	struct {
-		double   _tm_activated;
-		uint32_t _midi_note_index;
-	} _tones_active [KEYBOARD_POLYPHONY];
+	struct keyboard__tone _tones_active [KEYBOARD_POLYPHONY];
+	uint32_t              _tone_pointer;
 };
 
 enum t_status
@@ -87,6 +100,13 @@ keyboard_support_setup();
 
 void
 keyboard_support_cleanup();
+
+enum t_status
+keyboard_human_staccato(
+	struct keyboard *kbd,
+	double tm_sustain,
+	uint8_t note_idx
+);
 
 enum t_status
 keyboard_draw(

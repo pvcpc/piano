@@ -8,7 +8,7 @@
 #include "t_sequence.h"
 #include "t_draw.h"
 
-#include "keyboard.h"
+#include "keyboard_model.h"
 
 /* Minimum delta in seconds between successive framebuffer 
  * rasterization operations. When t_poll() is used in non-blocking
@@ -20,14 +20,13 @@
  */
 #define RASTERIZATION_DELTA_REQUIRED 1e-3
 
-
 int
 main(void)
 {
 	enum t_status stat;
 
 	/* initialize supports */
-	stat = keyboard_support_init();
+	stat = keyboard_model_support_init();
 	if (stat < 0) {
 		fprintf(stderr, "Failed to initialize virtual keyboard support: %s\n",
 			t_status_string(stat)
@@ -35,7 +34,6 @@ main(void)
 		goto e_initialization;
 	}
 
-	/* allocate and polish draw frames */
 	struct t_frame frame_primary;
 	stat = t_frame_create(&frame_primary, 0, 0);
 	if (stat < 0) {
@@ -45,6 +43,11 @@ main(void)
 		goto e_initialization;
 	}
 
+	struct keyboard keyboard = {
+		.midi_index_start = MIDI_INDEX(NOTE_C, 4),
+		.midi_index_end   = MIDI_INDEX(NOTE_B, 4),
+	};
+
 	/* setup, ui variables, and ui loop */
 	t_setup();
 
@@ -52,7 +55,15 @@ main(void)
 	bool should_poll_wait = true;
 	bool should_run = true;
 
+	double tm_staccato_sustain = 1;
 	int32_t user_octave = 4;
+
+#define MAIN__HUMAN_STACCATO(note)     \
+	keyboard_human_staccato(           \
+		&keyboard,                     \
+		tm_staccato_sustain,           \
+		MIDI_INDEX(note, user_octave)  \
+	)
 
 	while (should_run) {
 		double tm_now = t_elapsed();
@@ -68,9 +79,9 @@ main(void)
 			t_frame_resize(&frame_primary, term_w, term_h);
 			t_frame_clear(&frame_primary);
 
-			if (keyboard_dirty(&keyboard)) {
-				keyboard_draw(&frame_primary, &
-			}
+			t_draw
+
+			keyboard_draw(&frame_primary);
 
 			/* rasterize */
 			t_clear();
@@ -81,41 +92,40 @@ main(void)
 		switch (t_poll()) {
 		/* keyboard keybinds */
 		case T_POLL_CODE(0, 'q'):
-			keyboard_staccato(&keyboard, KEYBOARD_NOTEID(NOTE_C, user_octave));
-			/* C */
+			MAIN__HUMAN_STACCATO(NOTE_C);
 			break;
 		case T_POLL_CODE(0, '2'):
-			/* C# */
+			MAIN__HUMAN_STACCATO(NOTE_Cs);
 			break;
 		case T_POLL_CODE(0, 'w'):
-			/* D */
+			MAIN__HUMAN_STACCATO(NOTE_D);
 			break;
 		case T_POLL_CODE(0, '3'):
-			/* D# */
+			MAIN__HUMAN_STACCATO(NOTE_Ds);
 			break;
 		case T_POLL_CODE(0, 'e'):
-			/* E */
+			MAIN__HUMAN_STACCATO(NOTE_E);
 			break;
 		case T_POLL_CODE(0, 'r'):
-			/* F */
+			MAIN__HUMAN_STACCATO(NOTE_F);
 			break;
 		case T_POLL_CODE(0, '5'):
-			/* F# */
+			MAIN__HUMAN_STACCATO(NOTE_Fs);
 			break;
 		case T_POLL_CODE(0, 't'):
-			/* G */
+			MAIN__HUMAN_STACCATO(NOTE_G);
 			break;
 		case T_POLL_CODE(0, '6'):
-			/* G# */
+			MAIN__HUMAN_STACCATO(NOTE_Gs);
 			break;
 		case T_POLL_CODE(0, 'y'):
-			/* A */
+			MAIN__HUMAN_STACCATO(NOTE_A);
 			break;
 		case T_POLL_CODE(0, '7'):
-			/* A# */
+			MAIN__HUMAN_STACCATO(NOTE_As);
 			break;
 		case T_POLL_CODE(0, 'u'):
-			/* B */
+			MAIN__HUMAN_STACCATO(NOTE_B);
 			break;
 
 		/* administrative keybinds */

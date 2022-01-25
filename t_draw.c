@@ -43,7 +43,7 @@ t_frame_create(
 enum t_status
 t_frame_create_pattern(
 	struct t_frame *out,
-	enum t_frame_flag flags,
+	enum t_draw_flag flags,
 	char const *pattern
 ) {
 	if (!out) return T_ENULL;
@@ -194,10 +194,10 @@ enum t_status
 t_frame_blend(
 	struct t_frame *dst,
 	struct t_frame *src,
+	enum t_draw_flag flags,
 	int32_t x,
 	int32_t y
 ) {
-	return T_OK;
 }
 
 enum t_status

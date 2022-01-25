@@ -41,16 +41,16 @@ struct t_frame
 	uint32_t _true_height;
 };
 
-enum t_frame_flag
+enum t_draw_flag
 {
 	/* pattern flags */
-	T_FRAME_SPACEHOLDER = 0x0010,
+	T_DRAW_SPACEHOLDER = 0x01,
 
 	/* blend flags */
-	T_FRAME_DSTOVER     = 0x0100,
-	T_FRAME_SRCOVER     = 0x0200,
-	T_FRAME_PAINTOVER   = 0x0400,
-	T_FRAME_PAINTWASHED = 0x0800,
+	T_DRAW_DSTOVER     = 0x01,
+	T_DRAW_SRCOVER     = 0x02,
+	T_DRAW_PAINTOVER   = 0x04,
+	T_DRAW_PAINTWASHED = 0x08,
 };
 
 enum t_status
@@ -63,7 +63,7 @@ t_frame_create(
 enum t_status
 t_frame_create_pattern(
 	struct t_frame *dst,
-	enum t_frame_flag flags,
+	enum t_draw_flag flags,
 	char const *pattern
 );
 
@@ -92,14 +92,18 @@ t_frame_paint(
 );
 
 enum t_status
-t_frame_wash(
-	struct t_frame *dst
-);
-
-enum t_status
 t_frame_blend(
 	struct t_frame *dst,
 	struct t_frame *src,
+	enum t_draw_flag flags,
+	int32_t x,
+	int32_t y
+);
+
+enum t_status
+t_frame_print(
+	struct t_frame *dst,
+	char const *msg,
 	int32_t x,
 	int32_t y
 );
