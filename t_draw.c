@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -43,7 +44,7 @@ t_frame_create(
 enum t_status
 t_frame_create_pattern(
 	struct t_frame *out,
-	enum t_draw_flag flags,
+	enum t_frame_flag flags,
 	char const *pattern
 ) {
 	if (!out) return T_ENULL;
@@ -175,16 +176,16 @@ t_frame_clear(
 enum t_status
 t_frame_paint(
 	struct t_frame *dst,
-	int fg_rgb,
-	int bg_rgb
+	int32_t fg_rgba,
+	int32_t bg_rgba
 ) {
 	if (!dst) return T_ENULL;
 
 	for (uint32_t j = 0; j < dst->height; ++j) {
 		for (uint32_t i = 0; i < dst->width; ++i) {
 			struct t_cell *cell = t__frame_cell_at(dst, i, j);
-			cell->fg_rgb = fg_rgb;
-			cell->bg_rgb = bg_rgb;
+			cell->fg_rgba = fg_rgba;
+			cell->bg_rgba = bg_rgba;
 		}
 	}
 	return T_OK;
@@ -194,10 +195,67 @@ enum t_status
 t_frame_blend(
 	struct t_frame *dst,
 	struct t_frame *src,
-	enum t_draw_flag flags,
+	enum t_blend_flag flags,
+	int32_t flat_fg_rgba,
+	int32_t flat_bg_rgba,
 	int32_t x,
 	int32_t y
 ) {
+	if (!dst || !src) return T_ENULL;
+
+	int32_t
+		bb_x0 = T_MAX(0, x),
+		bb_y0 = T_MAX(0, y),
+		bb_x1 = T_MIN(dst->width,  x + src->width),
+		bb_y1 = T_MIN(dst->height, y + src->height);
+
+	uint8_t const dst_ch_mask = flags & T_BLEND_CH ? 0x00 : 0xff;
+	uint8_t const src_ch_mask = flags & T_BLEND_CH ? 0xff : 0x00;
+
+	uint32_t const dst_rgba_mask = 
+		(flags & T_BLEND_R ? 0 : T_MASK_R) |
+		(flags & T_BLEND_G ? 0 : T_MASK_G) |
+		(flags & T_BLEND_B ? 0 : T_MASK_B) |
+		(flags & T_BLEND_A ? 0 : T_MASK_A);
+
+	uint32_t const src_rgba_mask =
+		(flags & T_BLEND_R ? T_MASK_R : 0) |
+		(flags & T_BLEND_G ? T_MASK_G : 0) |
+		(flags & T_BLEND_B ? T_MASK_B : 0) |
+		(flags & T_BLEND_A ? T_MASK_A : 0);
+
+	for (int32_t bb_y = bb_y0; bb_y < bb_y1; ++bb_y) {
+		for (int32_t bb_x = bb_x0; bb_x < bb_x1; ++bb_x) {
+			
+			struct t_cell *src_cell = t__frame_cell_at(src, bb_x - x, bb_y - y);
+			if (!src_cell->ch && src_ch_mask) {
+				continue;
+			}
+
+			struct t_cell *dst_cell = t__frame_cell_at(dst, bb_x, bb_y);
+			if (!dst_cell->ch && dst_ch_mask) {
+				continue;
+			}
+
+			dst_cell->ch = (src_cell->ch & src_ch_mask) |
+			               (dst_cell->ch & dst_ch_mask);
+
+			uint32_t const src_fg_rgba = flags & T_BLEND_FGOVERRIDE ?
+				flat_fg_rgba : src_cell->fg_rgba;
+			uint32_t const src_bg_rgba = flags & T_BLEND_BGOVERRIDE ?
+				flat_bg_rgba : src_cell->bg_rgba;
+
+			uint32_t const dst_fg_rgba = dst_cell->fg_rgba;
+			uint32_t const dst_bg_rgba = dst_cell->bg_rgba;
+
+			dst_cell->fg_rgba = (src_fg_rgba & src_rgba_mask) |
+			                    (dst_fg_rgba & dst_rgba_mask);
+			dst_cell->bg_rgba = (src_bg_rgba & src_rgba_mask) |
+			                    (dst_bg_rgba & dst_rgba_mask);
+		}
+	}
+
+	return T_OK;
 }
 
 enum t_status
@@ -221,8 +279,8 @@ t_frame_rasterize(
 	int32_t prior_x = -65535;
 	int32_t prior_y = -65535;
 
-	int32_t prior_fg = T_WASHED;
-	int32_t prior_bg = T_WASHED;
+	int32_t prior_fg = T_RGBA(0, 0, 0, 0);
+	int32_t prior_bg = T_RGBA(0, 0, 0, 0);
 
 	for (int32_t bb_y = bb_y0; bb_y < bb_y1; ++bb_y) {
 		for (int32_t bb_x = bb_x0; bb_x < bb_x1; ++bb_x) {
@@ -261,21 +319,24 @@ t_frame_rasterize(
 			prior_y = bb_y;
 			
 			/* COLOR */
-			if (cell->fg_rgb == T_WASHED || cell->bg_rgb == T_WASHED) {
+			uint8_t const fg_alpha = T_ALPHA(cell->fg_rgba);
+			uint8_t const bg_alpha = T_ALPHA(cell->bg_rgba);
+
+			if (!fg_alpha || !bg_alpha) {
 				t_reset();
 				prior_fg = T_WASHED;
 				prior_bg = T_WASHED;
 			}
-			if (cell->fg_rgb >= 0 && cell->fg_rgb != prior_fg) {
-				prior_fg = cell->fg_rgb;
-				t_foreground_256(cell->fg_rgb);
+			if (fg_alpha > 0 && cell->fg_rgba != prior_fg) {
+				prior_fg = cell->fg_rgba;
+				t_foreground_256(cell->fg_rgba);
 			}
-			if (cell->bg_rgb >= 0 && cell->bg_rgb != prior_bg) {
-				prior_bg = cell->bg_rgb;
-				t_background_256(cell->bg_rgb);
+			if (bg_alpha > 0 && cell->bg_rgba != prior_bg) {
+				prior_bg = cell->bg_rgba;
+				t_background_256(cell->bg_rgba);
 			}
 
-			/* write out */
+			/* WRITE OUT */
 			enum t_status stat;
 			if ((stat = t_write(&cell->ch, 1)) < 0) {
 				return stat;

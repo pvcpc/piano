@@ -70,12 +70,12 @@ note_string(
 }
 
 /* midi spec: C(-1) = 0, G(9) = 127 */
-#define MIDI_INDEX(note, octave) (((octave) + 1) * NOTE_COUNT + (note))
-#define INDEX_NOTE(index) ((index) % NOTE_COUNT)
-#define INDEX_OCTAVE(index) ((index) / NOTE_COUNT - 1)
-
 #define MIDI_INDEX_MAX 127
 #define MIDI_INDEX_MASK 0x7f
+
+#define MIDI_INDEX(note, octave) (((octave) + 1) * NOTE_COUNT + (note))
+#define INDEX_NOTE(index) (((index) & MIDI_INDEX_MASK) % NOTE_COUNT)
+#define INDEX_OCTAVE(index) (((index) & MIDI_INDEX_MASK) / NOTE_COUNT - 1)
 
 struct keyboard__tone
 {
@@ -83,7 +83,7 @@ struct keyboard__tone
 	double                _tm_activated;
 	double                _tm_sustain;
 	uint8_t               _midi_note_index;
-}
+};
 
 struct keyboard
 {
@@ -112,6 +112,10 @@ enum t_status
 keyboard_draw(
 	struct t_frame *dst,
 	struct keyboard *kbd,
+	int32_t frame_fg_rgb,
+	int32_t frame_bg_rgb,
+	int32_t over_fg_rgb,
+	int32_t over_bg_rgb,
 	int32_t x,
 	int32_t y
 );

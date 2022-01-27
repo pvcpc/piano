@@ -173,7 +173,9 @@ keyboard_support_setup()
 	/* wash frames clean */
 	t_frame_paint(&g_frame_octave, T_WASHED, T_WASHED);
 	for (uint32_t i = 0; i < NOTE_COUNT; ++i) {
-		t_frame_paint(&g_frame_array_key_overlays[i], T_WASHED, T_WASHED);
+		t_frame_paint(&g_frame_array_key_overlays[i], 
+			T_WASHED, T_WASHED
+		);
 	}
 
 	return T_OK;
@@ -200,7 +202,7 @@ keyboard_human_staccato(
 ) {
 	if (!kbd) return T_ENULL;
 	if (note_idx > MIDI_INDEX_MAX) return T_EPARAM;
-	if (sustain <= 0) return T_OK;
+	if (tm_sustain <= 0) return T_OK;
 
 	double const tm_now = t_elapsed();
 
@@ -209,7 +211,7 @@ keyboard_human_staccato(
 		struct keyboard__tone *tone = &kbd->_tones_active[i];
 		if (tone->_midi_note_index == note_idx) {
 			tone->_tm_activated = tm_now;
-			tone->_tm_sustain = sustain;
+			tone->_tm_sustain = tm_sustain;
 			return T_OK;
 		}
 	}
@@ -221,7 +223,7 @@ keyboard_human_staccato(
 
 	struct keyboard__tone *tone = &kbd->_tones_active[kbd->_tone_pointer++];
 	tone->_tm_activated = tm_now;
-	tone->_tm_sustain = sustain;
+	tone->_tm_sustain = tm_sustain;
 	tone->_midi_note_index = note_idx;
 
 	return T_OK;
@@ -231,6 +233,10 @@ enum t_status
 keyboard_draw(
 	struct t_frame *dst,
 	struct keyboard *kbd,
+	int32_t frame_fg_rgb,
+	int32_t frame_bg_rgb,
+	int32_t over_fg_rgb,
+	int32_t over_bg_rgb,
 	int32_t x,
 	int32_t y
 ) {
@@ -239,12 +245,36 @@ keyboard_draw(
 	double const tm_now = t_elapsed();
 	keyboard__remove_expired_tones(kbd, tm_now);
 
-	uint32_t const octave_idx_lo = 
-		(MIDI_INDEX_MASK & kbd->midi_index_start) / NOTE_COUNT;
-	uint32_t const octave_idx_hi = 
-		(MIDI_INDEX_MASK & kbd->midi_index_end) / NOTE_COUNT;
+	int32_t const octave_idx_lo = INDEX_OCTAVE(kbd->midi_index_start);
+	int32_t const octave_idx_hi = INDEX_OCTAVE(kbd->midi_index_end);
 
-	for (uint32_t i = octave_idx_lo; i <= octave_idx_hi; ++i) {
-		x += g_frame_octave.width;
+	for (int32_t i = octave_idx_lo; i <= octave_idx_hi; ++i) {
+		t_frame_blend(dst, &g_frame_octave,
+			(T_BLEND_R | T_BLEND_G | T_BLEND_B | T_BLEND_A) |
+			(T_BLEND_FGOVERRIDE | T_BLEND_BGOVERRIDE),
+			frame_fg_rgb,
+			frame_bg_rgb,
+			x,
+			y
+		);
+		for (uint32_t j = 0; j < kbd->_tone_pointer;  ++j) {
+			struct keyboard__tone *tone = &kbd->_tones_active[j];
+			int32_t octave_idx_tone = INDEX_OCTAVE(tone->_midi_note_index);
+			int32_t note_idx_tone = INDEX_NOTE(tone->_midi_note_index);
+			if (octave_idx_tone != i) {
+				continue;
+			}
+			t_frame_blend(dst, &g_frame_array_key_overlays[note_idx_tone],
+				(T_BLEND_R | T_BLEND_G | T_BLEND_B | T_BLEND_A) |
+				(T_BLEND_FGOVERRIDE | T_BLEND_BGOVERRIDE),
+				over_fg_rgb,
+				over_bg_rgb,
+				x,
+				y
+			);
+		}
+		x += g_frame_octave.width - 1; /* -1 to overlay common border */
 	}
+
+	return T_OK;
 }

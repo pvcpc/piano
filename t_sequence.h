@@ -71,12 +71,26 @@ t_cursor_back(
 #define T_FG256        T_SEQ("\x1b[38;5;%dm")
 #define T_BG256        T_SEQ("\x1b[48;5;%dm")
 
-/* colors (24-bit packed RGB, -1 = default/reset/washed color) */
-#define T_RGB(r, g, b) ( (((b) & 0xff) << 16) | (((g) & 0xff) << 8) | ((r) & 0xff) )
-#define T_RED(rgb) ((rgb) & 0xff)
-#define T_GREEN(rgb) (((rgb) >> 8) & 0xff)
-#define T_BLUE(rgb) (((rgb) >> 16) & 0xff)
-#define T_WASHED -1
+/* colors (32-bit packed RGBA, -1 = default/reset/washed color) */
+/* @TODO(max): move these to draw, simplify t_fore/backround_256 */
+#define T_RGBA(r, g, b, a) (   \
+	(((a) & 0xff) << 24) | \
+	(((b) & 0xff) << 16) | \
+	(((g) & 0xff) <<  8) | \
+	(((r) & 0xff)      )   \
+)
+#define T_RGB(r, g, b) T_RGBA(r, g, b, 255)
+#define T_WASHED T_RGBA(0, 0, 0, 0)
+
+#define T_RED(rgba)   (((rgba)      ) & 0xff)
+#define T_GREEN(rgba) (((rgba) >>  8) & 0xff)
+#define T_BLUE(rgba)  (((rgba) >> 16) & 0xff)
+#define T_ALPHA(rgba) (((rgba) >> 24) & 0xff)
+
+#define T_MASK_R 0x000000ff
+#define T_MASK_G 0x0000ff00
+#define T_MASK_B 0x00ff0000
+#define T_MASK_A 0xff000000
 
 enum t_color3
 {

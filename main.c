@@ -8,7 +8,7 @@
 #include "t_sequence.h"
 #include "t_draw.h"
 
-#include "keyboard_model.h"
+#include "keyboard.h"
 
 /* Minimum delta in seconds between successive framebuffer 
  * rasterization operations. When t_poll() is used in non-blocking
@@ -26,12 +26,12 @@ main(void)
 	enum t_status stat;
 
 	/* initialize supports */
-	stat = keyboard_model_support_init();
+	stat = keyboard_support_setup();
 	if (stat < 0) {
 		fprintf(stderr, "Failed to initialize virtual keyboard support: %s\n",
 			t_status_string(stat)
 		);
-		goto e_initialization;
+		goto e_init_keyboard;
 	}
 
 	struct t_frame frame_primary;
@@ -40,7 +40,7 @@ main(void)
 		fprintf(stderr, "Failed to create primary framebuffer: %s\n",
 			t_status_string(stat)
 		);
-		goto e_initialization;
+		goto e_init_frame;
 	}
 
 	struct keyboard keyboard = {
@@ -52,7 +52,7 @@ main(void)
 	t_setup();
 
 	double tm_graphics_last = t_elapsed();
-	bool should_poll_wait = true;
+	bool should_poll_wait = false;
 	bool should_run = true;
 
 	double tm_staccato_sustain = 1;
@@ -69,7 +69,7 @@ main(void)
 		double tm_now = t_elapsed();
 		double tm_graphics_delta = tm_now - tm_graphics_last;
 
-		if (tm_graphics_delta >= RASTERIZATION_DELTA_REQUIRED) {
+		if (tm_graphics_delta >= 1e-3) {
 			tm_graphics_last = tm_now;
 
 			/* update framebuffer */
@@ -79,17 +79,52 @@ main(void)
 			t_frame_resize(&frame_primary, term_w, term_h);
 			t_frame_clear(&frame_primary);
 
-			t_draw
+			/*
+			keyboard_draw(&frame_primary, &keyboard,
+				T_RGB(128, 128, 128),
+				T_WASHED,
+				T_RGB(192, 128,  64),
+				T_WASHED,
+				0, 0
+			);
+			*/
 
-			keyboard_draw(&frame_primary);
+			struct t_frame frame;
+			t_frame_create_pattern(&frame, T_FRAME_SPACEHOLDER,
+	            "+-------------+\n"
+	            "|| | ||| | | ||\n"
+	            "|| | ||| | | ||\n"
+	            "|+-+-+|+-+-+-+|\n"
+	            "| | | | | | | |\n"
+	            "| | | | | | | |\n"
+	            "+-+-+-+-+-+-+-+\n"
+			);
+			t_frame_paint(&frame, T_WASHED, T_WASHED);
+			t_frame_rasterize(&frame, 0, 0);
+			t_frame_destroy(&frame);
 
-			/* rasterize */
-			t_clear();
-			t_frame_rasterize(&frame_octave, 0, 0);
+			t_cursor_pos(1, term_h);
+			t_foreground_256_ex(0, 0, 0);
+			t_background_256_ex(255, 255, 255);
+			t_write_f("Stored: %u, Flushed: %u",
+				t_debug_write_nstored(),
+				t_debug_write_nflushed()
+			);
+			t_debug_write_metrics_clear();
 			t_flush();
+
+			/* debug */
+			t_reset();
+			t_clear();
+			/* rasterize */
+			/*
+			t_clear();
+			t_frame_rasterize(&frame_primary, 0, 0);
+			t_flush();
+			*/
 		}
 
-		switch (t_poll()) {
+		switch (t_poll(should_poll_wait)) {
 		/* keyboard keybinds */
 		case T_POLL_CODE(0, 'q'):
 			MAIN__HUMAN_STACCATO(NOTE_C);
@@ -133,7 +168,6 @@ main(void)
 			should_run = 0;
 			break;
 		}
-
 	}
 
 	/* done */
@@ -142,8 +176,9 @@ main(void)
 	t_clear();
 	t_cleanup();
 
-e_initialization:
+e_init_frame:
 	t_frame_destroy(&frame_primary);
+e_init_keyboard:
 	keyboard_support_cleanup();
 	return 0;
 }

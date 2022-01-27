@@ -265,8 +265,9 @@ t_mach_cursor_inc()
 }
 
 int32_t
-t_poll() 
-{
+t_poll(
+	bool wait
+) {
 	t_mach_push(TM_RESET);
 
 	while (g_code_p > 0) {
@@ -452,7 +453,6 @@ t_poll()
 				};
 				poll(&fd, 1, -1); /* don't care about return value */
 			}
-
 			/* proceed to read */
 			g_read_buf_len = read(STDIN_FILENO, g_read_buf, sizeof(g_read_buf));
 			g_read_cursor = g_read_buf;

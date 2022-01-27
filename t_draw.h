@@ -23,11 +23,11 @@
 /* +--- FRAME DRAWING ---------------------------------------------+ */
 struct t_cell
 {
-	char ch;
+	uint8_t ch;
 
 	/* see t_sequence.h for how color is packed */
-	int32_t fg_rgb; 
-	int32_t bg_rgb;
+	uint32_t fg_rgba; 
+	uint32_t bg_rgba;
 };
 
 struct t_frame
@@ -41,16 +41,26 @@ struct t_frame
 	uint32_t _true_height;
 };
 
-enum t_draw_flag
+enum t_frame_flag
 {
-	/* pattern flags */
-	T_DRAW_SPACEHOLDER = 0x01,
+	T_FRAME_SPACEHOLDER  = 0x01,
+};
 
-	/* blend flags */
-	T_DRAW_DSTOVER     = 0x01,
-	T_DRAW_SRCOVER     = 0x02,
-	T_DRAW_PAINTOVER   = 0x04,
-	T_DRAW_PAINTWASHED = 0x08,
+enum t_blend_flag
+{
+	/* destination/source sampling mode: if set, sample from source;
+	 * if not set, sample from destination. */
+	T_BLEND_R            = 0x0001,
+	T_BLEND_G            = 0x0002,
+	T_BLEND_B            = 0x0004,
+	T_BLEND_A            = 0x0008,
+	T_BLEND_CH           = 0x0010,
+
+	/* source foreground/background color from additional 
+	 * flat_fg/bg_rgb parameters instead of either destination or
+	 * source. */
+	T_BLEND_FGOVERRIDE   = 0x0100,
+	T_BLEND_BGOVERRIDE   = 0x0200,
 };
 
 enum t_status
@@ -63,7 +73,7 @@ t_frame_create(
 enum t_status
 t_frame_create_pattern(
 	struct t_frame *dst,
-	enum t_draw_flag flags,
+	enum t_frame_flag flags,
 	char const *pattern
 );
 
@@ -87,23 +97,17 @@ t_frame_clear(
 enum t_status
 t_frame_paint(
 	struct t_frame *dst,
-	int fg_rgb,
-	int bg_rgb
+	int32_t fg_rgb,
+	int32_t bg_rgb
 );
 
 enum t_status
 t_frame_blend(
 	struct t_frame *dst,
 	struct t_frame *src,
-	enum t_draw_flag flags,
-	int32_t x,
-	int32_t y
-);
-
-enum t_status
-t_frame_print(
-	struct t_frame *dst,
-	char const *msg,
+	enum t_blend_flag flags,
+	int32_t flat_fg_rgb,
+	int32_t flat_bg_rgb,
 	int32_t x,
 	int32_t y
 );
