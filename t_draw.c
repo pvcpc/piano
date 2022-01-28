@@ -255,9 +255,6 @@ t_frame_blend(
 		bb_x1 = T_MIN(dst->width,  x + src->width),
 		bb_y1 = T_MIN(dst->height, y + src->height);
 
-	uint8_t const dst_ch_mask = flags & T_BLEND_CH ? 0x00 : 0xff;
-	uint8_t const src_ch_mask = flags & T_BLEND_CH ? 0xff : 0x00;
-
 	uint32_t const dst_rgba_mask = 
 		(flags & T_BLEND_R ? 0 : T_MASK_R) |
 		(flags & T_BLEND_G ? 0 : T_MASK_G) |
@@ -274,17 +271,13 @@ t_frame_blend(
 		for (int32_t bb_x = bb_x0; bb_x < bb_x1; ++bb_x) {
 			
 			struct t_cell *src_cell = t__frame_cell_at(src, bb_x - x, bb_y - y);
-			if (!src_cell->ch && src_ch_mask) {
-				continue;
-			}
-
 			struct t_cell *dst_cell = t__frame_cell_at(dst, bb_x, bb_y);
-			if (!dst_cell->ch && dst_ch_mask) {
+			if (!src_cell->ch) {
 				continue;
 			}
-
-			dst_cell->ch = (src_cell->ch & src_ch_mask) |
-			               (dst_cell->ch & dst_ch_mask);
+			
+			dst_cell->ch = (flags & T_BLEND_CH) ?
+				src_cell->ch : dst_cell->ch;
 
 			uint32_t const src_fg_rgba = flags & T_BLEND_FGOVERRIDE ?
 				flat_fg_rgba : src_cell->fg_rgba;

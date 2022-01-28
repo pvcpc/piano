@@ -33,7 +33,7 @@ frame_blend_demo_main();
 static int
 full_application_main();
 
-#define SELECTED_MAIN full_application_main
+#define SELECTED_MAIN frame_blend_demo_main
 
 int
 main()
@@ -98,7 +98,7 @@ frame_blend_demo_main()
 	t_frame_paint(&top, T_RGB(64, 64, 64), T_RGB(255, 255, 255));
 
 	t_frame_blend(&bottom, &top, 
-		~(T_BLEND_FGOVERRIDE | T_BLEND_BGOVERRIDE),
+		~(T_BLEND_CH),
 		T_RGB(255, 255, 255), T_RGB(255, 0, 0),
 		0, 0
 	);
