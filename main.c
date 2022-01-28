@@ -1,3 +1,6 @@
+/* WIP demo source -- used for random testing and not for any 
+ * particular demonstration.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -20,8 +23,69 @@
  */
 #define RASTERIZATION_DELTA_REQUIRED 1e-3
 
+
+static int
+frame_blend_demo_main();
+
+static int
+full_application_main();
+
+#define SELECTED_MAIN full_application_main
+
 int
-main(void)
+main()
+{
+	return SELECTED_MAIN();
+}
+
+static int
+frame_blend_demo_main()
+{
+	t_setup();
+
+	int32_t term_w, term_h;
+	t_termsize(&term_w, &term_h);
+
+	struct t_frame bottom;
+	t_frame_create_pattern(&bottom, T_FRAME_SPACEHOLDER,
+		"+--+  \n"
+		"|  |  \n"
+		"|  |  \n"
+		"+--+  \n"
+		"      \n"
+		"      \n"
+	);
+	t_frame_paint(&bottom, T_RGB(64, 192, 255), T_RGB(255, 192, 640));
+
+	struct t_frame top;
+	t_frame_create_pattern(&top, T_FRAME_SPACEHOLDER,
+		"      \n"
+		"      \n"
+		"  +--+\n"
+		"  |  |\n"
+		"  |  |\n"
+		"  +--+\n"
+	);
+	t_frame_paint(&top, T_RGB(64, 64, 64), T_RGB(255, 255, 255));
+
+	t_frame_blend(&bottom, &top, 
+		~(T_BLEND_FGOVERRIDE | T_BLEND_BGOVERRIDE),
+		T_RGB(255, 255, 255), T_RGB(255, 0, 0),
+		0, 0
+	);
+
+	t_reset();
+	t_clear();
+	t_frame_rasterize(&bottom, 0, 0);
+
+	t_write_z("\n");
+
+	t_cleanup();
+	return 0;
+}
+
+static int
+full_application_main()
 {
 	enum t_status stat;
 
@@ -79,16 +143,18 @@ main(void)
 			t_frame_resize(&frame_primary, term_w, term_h);
 			t_frame_clear(&frame_primary);
 
-			/*
 			keyboard_draw(&frame_primary, &keyboard,
-				T_RGB(128, 128, 128),
-				T_WASHED,
-				T_RGB(192, 128,  64),
-				T_WASHED,
+				T_RGB(128, 128, 128), T_WASHED,
+				T_RGB(192, 128,  64), T_WASHED,
 				0, 0
 			);
-			*/
 
+			/* rasterize */
+			t_reset();
+			t_clear();
+			t_frame_rasterize(&frame_primary, 0, 0);
+
+			/*
 			struct t_frame frame;
 			t_frame_create_pattern(&frame, T_FRAME_SPACEHOLDER,
 	            "+-------------+\n"
@@ -102,6 +168,7 @@ main(void)
 			t_frame_paint(&frame, T_WASHED, T_WASHED);
 			t_frame_rasterize(&frame, 0, 0);
 			t_frame_destroy(&frame);
+			*/
 
 			t_cursor_pos(1, term_h);
 			t_foreground_256_ex(0, 0, 0);

@@ -61,6 +61,9 @@ enum t_blend_flag
 	 * source. */
 	T_BLEND_FGOVERRIDE   = 0x0100,
 	T_BLEND_BGOVERRIDE   = 0x0200,
+
+	/* for ease of use */
+	T_BLEND_ALL          = 0xffff,
 };
 
 enum t_status

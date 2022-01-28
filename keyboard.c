@@ -62,13 +62,13 @@ static char const *const KEYBOARD__CH_OVERLAY_FRAMES [NOTE_COUNT] = {
 	            "               \n"
 	            "               \n"
 	            "               \n"
-	            "      #        \n"
-	            "      #        \n"
+	            "       #       \n"
+	            "       #       \n"
 	            "               \n",
 
 	[NOTE_Fs] = "               \n"
-	            "       #       \n"
-	            "       #       \n"
+	            "        #      \n"
+	            "        #      \n"
 	            "               \n"
 	            "               \n"
 	            "               \n"
@@ -78,13 +78,13 @@ static char const *const KEYBOARD__CH_OVERLAY_FRAMES [NOTE_COUNT] = {
 	            "               \n"
 	            "               \n"
 	            "               \n"
-	            "        #      \n"
-	            "        #      \n"
+	            "         #     \n"
+	            "         #     \n"
 	            "               \n",
 
 	[NOTE_Gs] = "               \n"
-	            "         #     \n"
-	            "         #     \n"
+	            "          #    \n"
+	            "          #    \n"
 	            "               \n"
 	            "               \n"
 	            "               \n"
@@ -94,13 +94,13 @@ static char const *const KEYBOARD__CH_OVERLAY_FRAMES [NOTE_COUNT] = {
 	            "               \n"
 	            "               \n"
 	            "               \n"
-	            "          #    \n"
-	            "          #    \n"
+	            "           #   \n"
+	            "           #   \n"
 	            "               \n",
 
 	[NOTE_As] = "               \n"
-	            "           #   \n"
-	            "           #   \n"
+	            "            #  \n"
+	            "            #  \n"
 	            "               \n"
 	            "               \n"
 	            "               \n"
@@ -110,8 +110,8 @@ static char const *const KEYBOARD__CH_OVERLAY_FRAMES [NOTE_COUNT] = {
 	            "               \n"
 	            "               \n"
 	            "               \n"
-	            "            #  \n"
-	            "            #  \n"
+	            "             # \n"
+	            "             # \n"
 	            "               \n",
 };
 
@@ -250,8 +250,7 @@ keyboard_draw(
 
 	for (int32_t i = octave_idx_lo; i <= octave_idx_hi; ++i) {
 		t_frame_blend(dst, &g_frame_octave,
-			(T_BLEND_R | T_BLEND_G | T_BLEND_B | T_BLEND_A) |
-			(T_BLEND_FGOVERRIDE | T_BLEND_BGOVERRIDE),
+			T_BLEND_ALL,
 			frame_fg_rgb,
 			frame_bg_rgb,
 			x,
@@ -265,8 +264,7 @@ keyboard_draw(
 				continue;
 			}
 			t_frame_blend(dst, &g_frame_array_key_overlays[note_idx_tone],
-				(T_BLEND_R | T_BLEND_G | T_BLEND_B | T_BLEND_A) |
-				(T_BLEND_FGOVERRIDE | T_BLEND_BGOVERRIDE),
+				T_BLEND_ALL, 
 				over_fg_rgb,
 				over_bg_rgb,
 				x,

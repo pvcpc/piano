@@ -80,7 +80,8 @@ t_cursor_back(
 	(((r) & 0xff)      )   \
 )
 #define T_RGB(r, g, b) T_RGBA(r, g, b, 255)
-#define T_WASHED T_RGBA(0, 0, 0, 0)
+#define T_GRAY(s)      T_RGBA(s, s, s, 255)
+#define T_WASHED       T_RGBA(0, 0, 0, 0)
 
 #define T_RED(rgba)   (((rgba)      ) & 0xff)
 #define T_GREEN(rgba) (((rgba) >>  8) & 0xff)
