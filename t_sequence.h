@@ -62,38 +62,16 @@ t_cursor_back(
 	return t_write_f(T_CURSOR_BACK, amount);
 }
 
-#define T_CLEAR        T_SEQ("\x1b[2J")
-#define T_RESET        T_SEQ("\x1b[0m")
+#define T_CLEAR              T_SEQ("\x1b[2J")
+#define T_RESET              T_SEQ("\x1b[0m")
 
-#define T_FG3          T_SEQ("\x1b[%dm")
-#define T_BG3          T_SEQ("\x1b[%dm")
-#define T_FBG3         T_SEQ("\x1b[%d;%dm")
-#define T_FG256        T_SEQ("\x1b[38;5;%dm")
-#define T_BG256        T_SEQ("\x1b[48;5;%dm")
+#define T_FOREGROUND_3       T_SEQ("\x1b[%dm")
+#define T_BACKGROUND_3       T_SEQ("\x1b[%dm")
+#define T_THEME_3            T_SEQ("\x1b[%d;%dm")
+#define T_FOREGROUND_256     T_SEQ("\x1b[38;5;%dm")
+#define T_BACKGROUND_256     T_SEQ("\x1b[48;5;%dm")
 
-/* colors (32-bit packed RGBA, -1 = default/reset/washed color) */
-/* @TODO(max): move these to draw, simplify t_fore/backround_256 */
-#define T_RGBA(r, g, b, a) (   \
-	(((a) & 0xff) << 24) | \
-	(((b) & 0xff) << 16) | \
-	(((g) & 0xff) <<  8) | \
-	(((r) & 0xff)      )   \
-)
-#define T_RGB(r, g, b) T_RGBA(r, g, b, 255)
-#define T_GRAY(s)      T_RGBA(s, s, s, 255)
-#define T_WASHED       T_RGBA(0, 0, 0, 0)
-
-#define T_RED(rgba)   (((rgba)      ) & 0xff)
-#define T_GREEN(rgba) (((rgba) >>  8) & 0xff)
-#define T_BLUE(rgba)  (((rgba) >> 16) & 0xff)
-#define T_ALPHA(rgba) (((rgba) >> 24) & 0xff)
-
-#define T_MASK_R 0x000000ff
-#define T_MASK_G 0x0000ff00
-#define T_MASK_B 0x00ff0000
-#define T_MASK_A 0xff000000
-
-enum t_color3
+enum t_color_3
 {
 	T_BLACK    = 0,
 	T_RED,
@@ -119,80 +97,47 @@ t_reset()
 
 static inline enum t_status
 t_foreground_3(
-	enum t_color3 color
+	enum t_color_3 color
 ) {
-	return t_write_f(T_FG3, color + 30);
+	return t_write_f(T_FOREGROUND_3, color + 30);
 }
 
 static inline enum t_status
 t_background_3(
-	enum t_color3 color
+	enum t_color_3 color
 ) {
-	return t_write_f(T_BG3, color + 40);
+	return t_write_f(T_BACKGROUND_3, color + 40);
 }
 
 static inline enum t_status
 t_theme_3(
-	enum t_color3 fg_color,
-	enum t_color3 bg_color
+	enum t_color_3 fg_color,
+	enum t_color_3 bg_color
 ) {
-	return t_write_f(T_FBG3, fg_color + 30, bg_color + 40);
-}
-
-static int
-t_rgb_compress_256(
-	int rgb
-) {
-	static int const l_point_table [] = {
-		0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff,
-	};
-	int const components [3] = {
-		T_RED(rgb), T_GREEN(rgb), T_BLUE(rgb),
-	};
-	int cube [3];
-
-	/* @SPEED(max): check compiler output for unrolling to make sure */
-	for (int i = 0; i < 3; ++i) {
-		int close_diff = 255;
-		for (int j = 0; j < 6; ++j) {
-			int diff = T_ABS(l_point_table[j] - components[i]);
-			if (diff < close_diff) {
-				cube[i] = j;
-				close_diff = diff;
-			}
-		}
-	}
-
-	return 16 +
-	       cube[0] * 36 +
-	       cube[1] *  6 +
-	       cube[2];
+	return t_write_f(T_THEME_3, fg_color + 30, bg_color + 40);
 }
 
 static inline enum t_status
 t_foreground_256(
-	int rgb
+	uint8_t color_code
 ) {
-	int comp = t_rgb_compress_256(rgb);
-	return t_write_f(T_FG256, comp);
+	return t_write_f(T_FOREGROUND_256, color_code);
 }
-#define t_foreground_256_ex(r, g, b) t_foreground_256(T_RGB(r, g, b))
 
 static inline enum t_status
 t_background_256(
-	int rgb
+	uint8_t color_code
 ) {
-	return t_write_f(T_BG256, t_rgb_compress_256(rgb));
+	return t_write_f(T_BACKGROUND_256, color_code);
 }
-#define t_background_256_ex(r, g, b) t_background_256(T_RGB(r, g, b))
 
 static inline enum t_status
 t_theme_256(
-	int fg_rgb,
-	int bg_rgb
+	uint8_t fg_color_code,
+	uint8_t bg_color_code
 ) {
-	enum t_status fg_stat = t_foreground_256(fg_rgb);
-	enum t_status bg_stat = t_background_256(bg_rgb);
+	enum t_status fg_stat = t_foreground_256(fg_color_code);
+	enum t_status bg_stat = t_background_256(bg_color_code);
 	return fg_stat >= 0 && bg_stat >= 0 ? T_OK : T_EUNKNOWN;
 }
 

@@ -2,6 +2,7 @@
 #define INCLUDE_T_DRAW_H
 
 #include "t_util.h"
+#include "t_sequence.h"
 
 /* compile-time constants (see README):
  * - TC_CELL_BLOCK_WIDTH (default 16):
@@ -19,6 +20,42 @@
 #ifndef TC_CELL_BLOCK_HEIGHT
 #  define TC_CELL_BLOCK_HEIGHT 16
 #endif
+
+/* +--- COLOR UTILITIES -------------------------------------------+ */
+#define T_RGBA(r, g, b, a) (   \
+	(((a) & 0xff) << 24) | \
+	(((b) & 0xff) << 16) | \
+	(((g) & 0xff) <<  8) | \
+	(((r) & 0xff)      )   \
+)
+#define T_RGB(r, g, b) T_RGBA(r, g, b, 255)
+#define T_GRAY(s)      T_RGBA(s, s, s, 255)
+#define T_WASHED       T_RGBA(0, 0, 0, 0)
+
+#define T_RED(rgba)   (((rgba)      ) & 0xff)
+#define T_GREEN(rgba) (((rgba) >>  8) & 0xff)
+#define T_BLUE(rgba)  (((rgba) >> 16) & 0xff)
+#define T_ALPHA(rgba) (((rgba) >> 24) & 0xff)
+
+#define T_MASK_R 0x000000ff
+#define T_MASK_G 0x0000ff00
+#define T_MASK_B 0x00ff0000
+#define T_MASK_A 0xff000000
+
+uint8_t
+t_rgb_compress_256(
+	uint32_t rgb
+);
+
+#define t_foreground_256_rgba(rgba) \
+	t_foreground_256(t_rgb_compress_256(rgba))
+#define t_background_256_rgba(rgba) \
+	t_background_256(t_rgb_compress_256(rgba))
+
+#define t_foreground_256_ex(r, g, b) \
+	t_foreground_256_rgba(T_RGB(r, g, b))
+#define t_background_256_ex(r, g, b) \
+	t_background_256_rgba(T_RGB(r, g, b))
 
 /* +--- FRAME DRAWING ---------------------------------------------+ */
 struct t_cell

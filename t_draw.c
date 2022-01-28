@@ -8,6 +8,52 @@
 #include "t_draw.h"
 
 
+/* +--- COLOR UTILITIES -------------------------------------------+ */
+uint8_t
+t_rgb_compress_256(
+	uint32_t rgb
+) {
+	static int const l_point_table [] = {
+		0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff,
+	};
+	int const components [3] = {
+		T_RED(rgb), T_GREEN(rgb), T_BLUE(rgb),
+	};
+	int cube [3];
+
+	/* @SPEED(max): check compiler output for unrolling to make sure */
+	for (int i = 0; i < 3; ++i) {
+		int close_diff = 255;
+		for (int j = 0; j < 6; ++j) {
+			int diff = T_ABS(l_point_table[j] - components[i]);
+			if (diff < close_diff) {
+				cube[i] = j;
+				close_diff = diff;
+			}
+		}
+	}
+
+	return 16 +
+	       36 * cube[0] +
+	        6 * cube[1] +
+	            cube[2];
+}
+
+static inline enum t_status
+t__foreground_256(
+	uint32_t rgba
+) {
+	return t_foreground_256(t_rgb_compress_256(rgba));
+}
+
+static inline enum t_status
+t__background_256(
+	uint32_t rgba
+) {
+	return t_background_256(t_rgb_compress_256(rgba));
+}
+
+/* +--- FRAME DRAWING ---------------------------------------------+ */
 static inline void
 t__frame_zero(
 	struct t_frame *frame
@@ -329,11 +375,11 @@ t_frame_rasterize(
 			}
 			if (fg_alpha > 0 && cell->fg_rgba != prior_fg) {
 				prior_fg = cell->fg_rgba;
-				t_foreground_256(cell->fg_rgba);
+				t__foreground_256(cell->fg_rgba);
 			}
 			if (bg_alpha > 0 && cell->bg_rgba != prior_bg) {
 				prior_bg = cell->bg_rgba;
-				t_background_256(cell->bg_rgba);
+				t__background_256(cell->bg_rgba);
 			}
 
 			/* WRITE OUT */
