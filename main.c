@@ -25,6 +25,9 @@
 
 
 static int
+frame_pattern_demo_main();
+
+static int
 frame_blend_demo_main();
 
 static int
@@ -36,6 +39,32 @@ int
 main()
 {
 	return SELECTED_MAIN();
+}
+
+static int
+frame_pattern_demo_main()
+{
+	t_setup();
+
+	t_reset();
+	t_clear();
+
+	struct t_frame frame;
+	t_frame_create_pattern(&frame, T_FRAME_SPACEHOLDER,
+		"+-------------+\n"
+		"|| | ||| | | ||\n"
+		"|| | ||| | | ||\n"
+		"|+-+-+|+-+-+-+|\n"
+		"| | | | | | | |\n"
+		"| | | | | | | |\n"
+		"+-+-+-+-+-+-+-+\n"
+	);
+	t_frame_paint(&frame, T_WASHED, T_WASHED);
+	t_frame_rasterize(&frame, 0, 0);
+	t_frame_destroy(&frame);
+
+	t_cleanup();
+	return 0;
 }
 
 static int
@@ -108,8 +137,8 @@ full_application_main()
 	}
 
 	struct keyboard keyboard = {
-		.midi_index_start = MIDI_INDEX(NOTE_C, 4),
-		.midi_index_end   = MIDI_INDEX(NOTE_B, 4),
+		.midi_index_start = MIDI_INDEX(NOTE_C, 3),
+		.midi_index_end   = MIDI_INDEX(NOTE_B, 5),
 	};
 
 	/* setup, ui variables, and ui loop */
@@ -119,7 +148,7 @@ full_application_main()
 	bool should_poll_wait = false;
 	bool should_run = true;
 
-	double tm_staccato_sustain = 1;
+	double tm_staccato_sustain = 0.25;
 	int32_t user_octave = 4;
 
 #define MAIN__HUMAN_STACCATO(note)     \
@@ -152,24 +181,10 @@ full_application_main()
 			/* rasterize */
 			t_reset();
 			t_clear();
+
 			t_frame_rasterize(&frame_primary, 0, 0);
 
-			/*
-			struct t_frame frame;
-			t_frame_create_pattern(&frame, T_FRAME_SPACEHOLDER,
-	            "+-------------+\n"
-	            "|| | ||| | | ||\n"
-	            "|| | ||| | | ||\n"
-	            "|+-+-+|+-+-+-+|\n"
-	            "| | | | | | | |\n"
-	            "| | | | | | | |\n"
-	            "+-+-+-+-+-+-+-+\n"
-			);
-			t_frame_paint(&frame, T_WASHED, T_WASHED);
-			t_frame_rasterize(&frame, 0, 0);
-			t_frame_destroy(&frame);
-			*/
-
+#ifdef TC_DEBUG_METRICS
 			t_cursor_pos(1, term_h);
 			t_foreground_256_ex(0, 0, 0);
 			t_background_256_ex(255, 255, 255);
@@ -178,17 +193,8 @@ full_application_main()
 				t_debug_write_nflushed()
 			);
 			t_debug_write_metrics_clear();
+#endif
 			t_flush();
-
-			/* debug */
-			t_reset();
-			t_clear();
-			/* rasterize */
-			/*
-			t_clear();
-			t_frame_rasterize(&frame_primary, 0, 0);
-			t_flush();
-			*/
 		}
 
 		switch (t_poll(should_poll_wait)) {
@@ -247,5 +253,5 @@ e_init_frame:
 	t_frame_destroy(&frame_primary);
 e_init_keyboard:
 	keyboard_support_cleanup();
-	return 0;
+	return stat > 0 ? 0 : 1;
 }
