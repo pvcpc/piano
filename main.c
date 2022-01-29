@@ -31,6 +31,9 @@ static int
 soundio_testing_main();
 
 static int
+midi_parse_demo_main();
+
+static int
 frame_pattern_demo_main();
 
 static int
@@ -206,6 +209,12 @@ e_sio_backend:
 e_sio_init:
 	soundio_destroy(sio);
 	return stat;
+}
+
+static int
+midi_parse_demo_main()
+{
+	return 0;
 }
 
 static int
