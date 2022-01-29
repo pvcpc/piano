@@ -42,7 +42,7 @@ frame_blend_demo_main();
 static int
 full_application_main();
 
-#define SELECTED_MAIN soundio_testing_main
+#define SELECTED_MAIN full_application_main
 
 int
 main()
@@ -321,7 +321,6 @@ full_application_main()
 	t_setup();
 
 	double tm_graphics_last = t_elapsed();
-	bool should_poll_wait = false;
 	bool should_run = true;
 
 	double tm_staccato_sustain = 0.25;
@@ -373,7 +372,7 @@ full_application_main()
 			t_flush();
 		}
 
-		switch (t_poll(should_poll_wait)) {
+		switch (t_poll()) {
 		/* keyboard keybinds */
 		case T_POLL_CODE(0, 'q'):
 			MAIN__HUMAN_STACCATO(NOTE_C);
