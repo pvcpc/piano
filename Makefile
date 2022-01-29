@@ -1,5 +1,6 @@
 CC      := /usr/bin/gcc
 CFLAGS  := -std=gnu99 -Wall -pedantic
+CLIBS   := -lm -lsoundio
 
 sources := $(wildcard *.c)
 target  := a.out
@@ -11,7 +12,7 @@ else
 endif
 
 $(target): $(sources)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) $(CLIBS) -o $@ $^
 
 clean:
 	rm $(target)
