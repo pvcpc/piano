@@ -313,8 +313,8 @@ full_application_main()
 	}
 
 	struct keyboard keyboard = {
-		.midi_index_start = MIDI_INDEX(NOTE_C, 3),
-		.midi_index_end   = MIDI_INDEX(NOTE_B, 5),
+		.mi_lo = MIDI_INDEX(NOTE_C, 3),
+		.mi_hi = MIDI_INDEX(NOTE_B, 5),
 	};
 
 	/* setup, ui variables, and ui loop */
@@ -324,11 +324,13 @@ full_application_main()
 	bool should_run = true;
 
 	double tm_staccato_sustain = 0.25;
+	uint8_t gry = 0;
 	int32_t user_octave = 4;
 
 #define MAIN__HUMAN_STACCATO(note)     \
-	keyboard_human_staccato(           \
+	keyboard_tone_activate(            \
 		&keyboard,                     \
+		tm_now,                        \
 		tm_staccato_sustain,           \
 		MIDI_INDEX(note, user_octave)  \
 	)
@@ -347,8 +349,10 @@ full_application_main()
 			t_frame_resize(&frame_primary, term_w, term_h);
 			t_frame_clear(&frame_primary);
 
+			gry = (uint8_t) (127 * sin(tm_now) + 128);
+			keyboard_tones_deactivate_expired(&keyboard, tm_now);
 			keyboard_draw(&frame_primary, &keyboard,
-				T_RGB(128, 128, 128), T_WASHED,
+				T_RGB(gry, gry, gry), T_WASHED,
 				T_RGB(192, 128,  64), T_WASHED,
 				0, 0
 			);
@@ -363,9 +367,10 @@ full_application_main()
 			t_cursor_pos(1, term_h);
 			t_foreground_256_ex(0, 0, 0);
 			t_background_256_ex(255, 255, 255);
-			t_write_f("Stored: %u, Flushed: %u",
+			t_write_f("Stored: %u, Flushed: %u, GRY: %u",
 				t_debug_write_nstored(),
-				t_debug_write_nflushed()
+				t_debug_write_nflushed(),
+				gry
 			);
 			t_debug_write_metrics_clear();
 #endif

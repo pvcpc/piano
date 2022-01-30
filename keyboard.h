@@ -76,24 +76,32 @@ note_string(
 #define MIDI_INDEX(note, octave) (((octave) + 1) * NOTE_COUNT + (note))
 #define INDEX_NOTE(index) (((index) & MIDI_INDEX_MASK) % NOTE_COUNT)
 #define INDEX_OCTAVE(index) (((index) & MIDI_INDEX_MASK) / NOTE_COUNT - 1)
+#define INDEX_OCTAVE_ZB(index) (((index) & MIDI_INDEX_MASK) / NOTE_COUNT)
 
-struct keyboard__tone
+struct keyboard_tone
 {
-	/* internal */
-	double                _tm_activated;
-	double                _tm_sustain;
-	uint8_t               _midi_note_index;
+	struct { /* client-side should read only */
+		double               tm_start;
+		double               tm_sustain; /* < 0 indicates infinite sustain */
+		uint8_t              mi;
+	} ro;
 };
 
 struct keyboard
 {
-	uint8_t               midi_index_start;
-	uint8_t               midi_index_end;
+	uint8_t                  mi_hi; /* highest visible index on screen */
+	uint8_t                  mi_lo; /* lowest visible index on screen */
 
-	/* internal */
-	struct keyboard__tone _tones_active [KEYBOARD_POLYPHONY];
-	uint32_t              _tone_pointer;
+	struct { /* client-side should read only */
+		struct keyboard_tone tones_active [KEYBOARD_POLYPHONY];
+		uint32_t             tone_pointer;
+	} ro;
 };
+
+/* use in keyboard_tone_activate when no starting time point is available. */
+#define KBD_START_INF -1
+/* use in keyboard_tone_activate when sustain should be infinite. */
+#define KBD_SUSTAIN_INF -1
 
 enum t_status
 keyboard_support_setup();
@@ -102,10 +110,23 @@ void
 keyboard_support_cleanup();
 
 enum t_status
-keyboard_human_staccato(
+keyboard_tone_activate(
 	struct keyboard *kbd,
+	double tm_start,
 	double tm_sustain,
-	uint8_t note_idx
+	uint8_t mi
+);
+
+enum t_status
+keyboard_tone_deactivate(
+	struct keyboard *kbd,
+	uint8_t mi
+);
+
+enum t_status
+keyboard_tones_deactivate_expired(
+	struct keyboard *kbd,
+	double tm_point
 );
 
 enum t_status

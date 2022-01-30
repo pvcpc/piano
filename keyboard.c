@@ -118,28 +118,6 @@ static char const *const KEYBOARD__CH_OVERLAY_FRAMES [NOTE_COUNT] = {
 struct t_frame g_frame_octave;
 struct t_frame g_frame_array_key_overlays [NOTE_COUNT];
 
-static void
-keyboard__remove_expired_tones(
-	struct keyboard *kbd,
-	double const tm_now
-) {
-	for (int32_t i = 0; i < kbd->_tone_pointer; ++i) {
-		struct keyboard__tone *tone = &kbd->_tones_active[i];
-
-		if (tone->_tm_activated + tone->_tm_sustain <= tm_now) {
-			--kbd->_tone_pointer;
-			if (i != kbd->_tone_pointer) { /* swap end with current */
-				struct keyboard__tone *repl = 
-					&kbd->_tones_active[kbd->_tone_pointer];
-				tone->_tm_activated    = repl->_tm_activated;
-				tone->_tm_sustain      = repl->_tm_sustain;
-				tone->_midi_note_index = repl->_midi_note_index;
-			}
-			--i; /* don't go to the next elem yet if we swapped this one */
-		}
-	}
-}
-
 enum t_status
 keyboard_support_setup()
 {
@@ -195,37 +173,90 @@ keyboard_support_cleanup()
 }
 
 enum t_status
-keyboard_human_staccato(
+keyboard_tone_activate(
 	struct keyboard *kbd,
+	double tm_start,
 	double tm_sustain,
-	uint8_t note_idx
+	uint8_t mi
 ) {
 	if (!kbd) return T_ENULL;
-	if (note_idx > MIDI_INDEX_MAX) return T_EPARAM;
-	if (tm_sustain <= 0) return T_OK;
+	if (mi > MIDI_INDEX_MAX) return T_EPARAM;
 
-	double const tm_now = t_elapsed();
-
-	/* check if note is already active */
-	for (uint32_t i = 0; i < kbd->_tone_pointer; ++i) {
-		struct keyboard__tone *tone = &kbd->_tones_active[i];
-		if (tone->_midi_note_index == note_idx) {
-			tone->_tm_activated = tm_now;
-			tone->_tm_sustain = tm_sustain;
+	/* check if note is already activated */
+	for (int32_t i = 0; i < kbd->ro.tone_pointer; ++i) {
+		struct keyboard_tone *tone = &kbd->ro.tones_active[i];
+		if (tone->ro.mi == mi) {
 			return T_OK;
 		}
 	}
 
-	/* if not, try to add it */
-	if (kbd->_tone_pointer >= KEYBOARD_POLYPHONY) {
-		return T_EOVERFLO;
+	/* it tone is not active, check to make sure we have room */
+	if (kbd->ro.tone_pointer >= KEYBOARD_POLYPHONY) return T_EOVERFLO;
+
+	/* otherwise activate it */
+	struct keyboard_tone *tone = 
+		&kbd->ro.tones_active[kbd->ro.tone_pointer++];
+	tone->ro.tm_start = tm_start;
+	tone->ro.tm_sustain = tm_sustain;
+	tone->ro.mi = mi;
+
+	return T_OK;
+}
+
+enum t_status
+keyboard_tone_deactivate(
+	struct keyboard *kbd,
+	uint8_t mi 
+) {
+	if (!kbd) return T_ENULL;
+	if (mi > MIDI_INDEX_MAX) return T_EPARAM;
+
+	for (int32_t i = 0; i < kbd->ro.tone_pointer; ++i) {
+		struct keyboard_tone *tone = &kbd->ro.tones_active[i];
+		if (tone->ro.mi != mi) {
+			continue;
+		}
+
+		--kbd->ro.tone_pointer;
+		if (i == kbd->ro.tone_pointer) {
+			continue;
+		}
+
+		struct keyboard_tone *end = 
+			&kbd->ro.tones_active[kbd->ro.tone_pointer];
+		tone->ro.tm_start   = end->ro.tm_start;
+		tone->ro.tm_sustain = end->ro.tm_sustain;
+		tone->ro.mi         = end->ro.mi;
+		--i;
 	}
+	return T_OK;
+}
 
-	struct keyboard__tone *tone = &kbd->_tones_active[kbd->_tone_pointer++];
-	tone->_tm_activated = tm_now;
-	tone->_tm_sustain = tm_sustain;
-	tone->_midi_note_index = note_idx;
+enum t_status
+keyboard_tones_deactivate_expired(
+	struct keyboard *kbd,
+	double tm_point
+) {
+	if (!kbd) return T_ENULL;
 
+	for (int32_t i = 0; i < kbd->ro.tone_pointer; ++i) {
+		struct keyboard_tone *tone = &kbd->ro.tones_active[i];
+		if (tone->ro.tm_start + tone->ro.tm_sustain > tm_point) {
+			continue;
+		}
+
+		--kbd->ro.tone_pointer;
+		if (i == kbd->ro.tone_pointer) {
+			continue;
+		}
+
+		struct keyboard_tone *end = 
+			&kbd->ro.tones_active[kbd->ro.tone_pointer];
+		tone->ro.tm_start   = end->ro.tm_start;
+		tone->ro.tm_sustain = end->ro.tm_sustain;
+		tone->ro.mi         = end->ro.mi;
+		--i;
+	}
 	return T_OK;
 }
 
@@ -242,37 +273,38 @@ keyboard_draw(
 ) {
 	if (!dst || !kbd) return T_ENULL;
 
-	double const tm_now = t_elapsed();
-	keyboard__remove_expired_tones(kbd, tm_now);
+	int32_t const 
+		oct_lo = INDEX_OCTAVE_ZB(kbd->mi_lo),
+		oct_hi = INDEX_OCTAVE_ZB(kbd->mi_hi);
 
-	int32_t const octave_idx_lo = INDEX_OCTAVE(kbd->midi_index_start);
-	int32_t const octave_idx_hi = INDEX_OCTAVE(kbd->midi_index_end);
-
-	for (int32_t i = octave_idx_lo; i <= octave_idx_hi; ++i) {
+	for (int32_t i = 0; i <= (oct_hi - oct_lo); ++i) {
 		t_frame_blend(dst, &g_frame_octave,
 			T_BLEND_ALL,
 			frame_fg_rgb,
 			frame_bg_rgb,
-			x,
+			x + i * (g_frame_octave.width - 1), /* -1 to overlap borders */
 			y
 		);
-		for (uint32_t j = 0; j < kbd->_tone_pointer;  ++j) {
-			struct keyboard__tone *tone = &kbd->_tones_active[j];
-			int32_t octave_idx_tone = INDEX_OCTAVE(tone->_midi_note_index);
-			int32_t note_idx_tone = INDEX_NOTE(tone->_midi_note_index);
-			if (octave_idx_tone != i) {
-				continue;
-			}
-			t_frame_blend(dst, &g_frame_array_key_overlays[note_idx_tone],
-				T_BLEND_ALL, 
-				over_fg_rgb,
-				over_bg_rgb,
-				x,
-				y
-			);
-		}
-		x += g_frame_octave.width - 1; /* -1 to overlay common border */
 	}
 
+	for (uint32_t i = 0; i < kbd->ro.tone_pointer; ++i) {
+		struct keyboard_tone *tone = &kbd->ro.tones_active[i];
+
+		if (tone->ro.mi < kbd->mi_lo || kbd->mi_hi < tone->ro.mi) {
+			/* tone out of range of visual rendering */
+			continue;
+		}
+
+		int32_t i_oct = INDEX_OCTAVE_ZB(tone->ro.mi) - oct_lo;
+		int32_t i_note = INDEX_NOTE(tone->ro.mi);
+
+		t_frame_blend(dst, &g_frame_array_key_overlays[i_note],
+			T_BLEND_ALL, 
+			over_fg_rgb,
+			over_bg_rgb,
+			x + i_oct * (g_frame_octave.width - 1), /* -1 to overlap borders */
+			y
+		);
+	}
 	return T_OK;
 }
