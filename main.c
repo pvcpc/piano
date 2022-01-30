@@ -349,8 +349,6 @@ full_application_main()
 			t_frame_resize(&frame_primary, term_w, term_h);
 			t_frame_clear(&frame_primary);
 
-			frame_primary.blend.clip = T_BOX_GEOM(1, 1, 32, 4);
-
 			gry = (uint8_t) (127 * sin(tm_now) + 128);
 			keyboard_tones_deactivate_expired(&keyboard, tm_now);
 			keyboard_draw(&frame_primary, &keyboard,

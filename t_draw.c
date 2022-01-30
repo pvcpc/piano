@@ -372,6 +372,7 @@ t_frame_rasterize(
 
 	int32_t prior_fg = T_RGBA(0, 0, 0, 0);
 	int32_t prior_bg = T_RGBA(0, 0, 0, 0);
+	t_reset();
 
 	for (int32_t bb_y = bb_y0; bb_y < bb_y1; ++bb_y) {
 		for (int32_t bb_x = bb_x0; bb_x < bb_x1; ++bb_x) {
@@ -413,6 +414,22 @@ t_frame_rasterize(
 			uint8_t const fg_alpha = T_ALPHA(cell->fg_rgba);
 			uint8_t const bg_alpha = T_ALPHA(cell->bg_rgba);
 
+			if (cell->fg_rgba != prior_fg || cell->bg_rgba != prior_bg) {
+				if (!fg_alpha || !bg_alpha) {
+					t_reset();
+					prior_fg = T_WASHED;
+					prior_bg = T_WASHED;
+				}
+				if (cell->fg_rgba != prior_fg) {
+					prior_fg = cell->fg_rgba;
+					t__foreground_256(cell->fg_rgba);
+				}
+				if (cell->bg_rgba != prior_bg) {
+					prior_bg = cell->bg_rgba;
+					t__background_256(cell->bg_rgba);
+				}
+			}
+#if 0
 			if (!fg_alpha || !bg_alpha) {
 				t_reset();
 				prior_fg = T_WASHED;
@@ -426,6 +443,7 @@ t_frame_rasterize(
 				prior_bg = cell->bg_rgba;
 				t__background_256(cell->bg_rgba);
 			}
+#endif
 
 			/* WRITE OUT */
 			enum t_status stat;
