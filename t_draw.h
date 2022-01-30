@@ -43,6 +43,16 @@
 #define T_MASK_A 0xff000000
 
 uint8_t
+t_rgb_compress_cube_256(
+	uint32_t rgb
+);
+
+uint8_t
+t_rgb_compress_gray_256(
+	uint32_t rgb
+);
+
+uint8_t
 t_rgb_compress_256(
 	uint32_t rgb
 );
@@ -56,6 +66,66 @@ t_rgb_compress_256(
 	t_foreground_256_rgba(T_RGB(r, g, b))
 #define t_background_256_ex(r, g, b) \
 	t_background_256_rgba(T_RGB(r, g, b))
+
+/* +--- MATH & MISC. COMPUTATION ----------------------------------+ */
+struct t_box
+{
+	int32_t x0;
+	int32_t y0;
+	int32_t x1;
+	int32_t y1;
+};
+
+#define T_BOX(x0, y0, x1, y1) \
+	((struct t_box){ x0, y0, x1, y1 })
+#define T_BOX_GEOM(x, y, width, height) \
+	((struct t_box){ x, y, x + width, y + height })
+#define T_BOX_SCREEN(width, height) \
+	((struct t_box){ 0, 0, width, height })
+
+static inline struct t_box *
+t_box_standardize(
+	struct t_box *dst
+) {
+	int32_t
+		x0 = T_MIN(dst->x0, dst->x1),
+		y0 = T_MIN(dst->y0, dst->y1),
+		x1 = T_MAX(dst->x0, dst->x1),
+		y1 = T_MAX(dst->y0, dst->y1);
+	dst->x0 = x0;
+	dst->y0 = y0;
+	dst->x1 = x1;
+	dst->y1 = y1;
+	return dst;
+}
+
+static inline struct t_box * 
+t_box_intersect_no_standardize(
+	struct t_box *dst,
+	struct t_box *src
+) {
+	int32_t
+		x0 = T_MAX(dst->x0, src->x0),
+		y0 = T_MAX(dst->y0, src->y0),
+		x1 = T_MIN(dst->x1, src->x1),
+		y1 = T_MIN(dst->y1, src->y1);
+	dst->x0 = x0;
+	dst->y0 = y0;
+	dst->x1 = x1;
+	dst->y1 = y1;
+	return dst;
+}
+
+static inline struct t_box *
+t_box_intersect(
+	struct t_box *dst,
+	struct t_box *src
+) {
+	return t_box_intersect_no_standardize(
+		t_box_standardize(dst),
+		t_box_standardize(src)
+	);
+}
 
 /* +--- FRAME DRAWING ---------------------------------------------+ */
 struct t_cell
@@ -72,6 +142,11 @@ struct t_frame
 	struct t_cell *grid;
 	int32_t width;
 	int32_t height;
+
+	/* persistent blend settings (reset with `t_frame_blend_reset()`) */
+	struct {
+		struct t_box clip;
+	} blend;
 
 	/* internal */
 	uint32_t _true_width;
@@ -139,6 +214,17 @@ t_frame_paint(
 	struct t_frame *dst,
 	int32_t fg_rgb,
 	int32_t bg_rgb
+);
+
+enum t_status
+t_frame_blend_reset(
+	struct t_frame *dst
+);
+
+enum t_status
+t_frame_blend_set_clip(
+	struct t_frame *dst,
+	struct t_box *box
 );
 
 enum t_status

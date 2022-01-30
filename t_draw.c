@@ -10,7 +10,7 @@
 
 /* +--- COLOR UTILITIES -------------------------------------------+ */
 uint8_t
-t_rgb_compress_256(
+t_rgb_compress_cube_256(
 	uint32_t rgb
 ) {
 	static int const l_point_table [] = {
@@ -39,6 +39,30 @@ t_rgb_compress_256(
 	            cube[2];
 }
 
+uint8_t
+t_rgb_compress_gray_256(
+	uint32_t rgb
+) {
+	int const scale = (T_RED(rgb) + T_GREEN(rgb) + T_BLUE(rgb)) / 3;
+	int const index = (scale - 0x08) / 10;
+
+	/* because grayscale doesn't end with 0xffffff, we have to do this
+	 * stupid magic to wrap the 256 to a 231 which happens to be the
+	 * another code for 0xffffff */
+	return 232 + (index % 24) - (index / 24);
+}
+
+uint8_t
+t_rgb_compress_256(
+	uint32_t rgb
+) {
+	/* @SPEED(max): branch */
+	if (T_RED(rgb) == T_GREEN(rgb) && T_GREEN(rgb) == T_BLUE(rgb)) {
+		return t_rgb_compress_gray_256(rgb);
+	}
+	return t_rgb_compress_cube_256(rgb);
+}
+
 static inline enum t_status
 t__foreground_256(
 	uint32_t rgba
@@ -58,12 +82,14 @@ static inline void
 t__frame_zero(
 	struct t_frame *frame
 ) {
-	frame->grid = NULL;
-	frame->width = 0;
-	frame->height = 0;
+	memset(frame, 0, sizeof(struct t_frame));
+}
 
-	frame->_true_width = 0;
-	frame->_true_height = 0;
+static inline void
+t__frame_reset(
+	struct t_frame *frame
+) {
+	t_frame_blend_reset(frame);
 }
 
 static inline struct t_cell *
@@ -83,6 +109,7 @@ t_frame_create(
 ) {
 	if (!out) return T_ENULL;
 	t__frame_zero(out);
+	t__frame_reset(out);
 
 	return t_frame_resize(out, width, height);
 }
@@ -95,6 +122,7 @@ t_frame_create_pattern(
 ) {
 	if (!out) return T_ENULL;
 	t__frame_zero(out);
+	t__frame_reset(out);
 
 	if (!out || !pattern) return T_ENULL;
 
@@ -238,6 +266,32 @@ t_frame_paint(
 }
 
 enum t_status
+t_frame_blend_reset(
+	struct t_frame *dst
+) {
+	if (!dst) return T_ENULL;
+
+	dst->blend.clip.x0 = INT32_MIN;
+	dst->blend.clip.y0 = INT32_MIN;
+	dst->blend.clip.x1 = INT32_MAX;
+	dst->blend.clip.y1 = INT32_MAX;
+
+	return T_OK;
+}
+
+enum t_status
+t_frame_blend_set_clip(
+	struct t_frame *dst,
+	struct t_box *box
+) {
+	if (!dst || !box) return T_ENULL;
+	
+	dst->blend.clip = *box;
+
+	return T_OK;
+}
+
+enum t_status
 t_frame_blend(
 	struct t_frame *dst,
 	struct t_frame *src,
@@ -249,11 +303,21 @@ t_frame_blend(
 ) {
 	if (!dst || !src) return T_ENULL;
 
+	struct t_box bb = T_BOX_SCREEN(dst->width, dst->height);
+	t_box_intersect_no_standardize(
+		&bb, t_box_standardize(&dst->blend.clip)
+	);
+	t_box_intersect_no_standardize(
+		&bb, &T_BOX_GEOM(x, y, src->width, src->height)
+	);
+
+	/*
 	int32_t
 		bb_x0 = T_MAX(0, x),
 		bb_y0 = T_MAX(0, y),
 		bb_x1 = T_MIN(dst->width,  x + src->width),
 		bb_y1 = T_MIN(dst->height, y + src->height);
+	*/
 
 	uint32_t const dst_rgba_mask = 
 		(flags & T_BLEND_R ? 0 : T_MASK_R) |
@@ -267,8 +331,8 @@ t_frame_blend(
 		(flags & T_BLEND_B ? T_MASK_B : 0) |
 		(flags & T_BLEND_A ? T_MASK_A : 0);
 
-	for (int32_t bb_y = bb_y0; bb_y < bb_y1; ++bb_y) {
-		for (int32_t bb_x = bb_x0; bb_x < bb_x1; ++bb_x) {
+	for (int32_t bb_y = bb.y0; bb_y < bb.y1; ++bb_y) {
+		for (int32_t bb_x = bb.x0; bb_x < bb.x1; ++bb_x) {
 			
 			struct t_cell *src_cell = t__frame_cell_at(src, bb_x - x, bb_y - y);
 			struct t_cell *dst_cell = t__frame_cell_at(dst, bb_x, bb_y);

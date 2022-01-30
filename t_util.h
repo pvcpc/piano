@@ -22,6 +22,8 @@
 
 #define T_ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*arr))
 
+#define T_SWAP(type, a, b) \
+	{ type tmp = a; a = b; b = tmp; }
 
 enum t_status
 {
@@ -70,6 +72,5 @@ t_status_string(
 		return "UNDEFINED_STATUS_CODE";
 	}
 }
-
 
 #endif /* INCLUDE_T_UTIL_H */
