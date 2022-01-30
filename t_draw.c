@@ -280,18 +280,6 @@ t_frame_blend_reset(
 }
 
 enum t_status
-t_frame_blend_set_clip(
-	struct t_frame *dst,
-	struct t_box *box
-) {
-	if (!dst || !box) return T_ENULL;
-	
-	dst->blend.clip = *box;
-
-	return T_OK;
-}
-
-enum t_status
 t_frame_blend(
 	struct t_frame *dst,
 	struct t_frame *src,

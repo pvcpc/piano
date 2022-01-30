@@ -222,12 +222,6 @@ t_frame_blend_reset(
 );
 
 enum t_status
-t_frame_blend_set_clip(
-	struct t_frame *dst,
-	struct t_box *box
-);
-
-enum t_status
 t_frame_blend(
 	struct t_frame *dst,
 	struct t_frame *src,
