@@ -292,20 +292,8 @@ t_frame_blend(
 	if (!dst || !src) return T_ENULL;
 
 	struct t_box bb = T_BOX_SCREEN(dst->width, dst->height);
-	t_box_intersect_no_standardize(
-		&bb, t_box_standardize(&dst->blend.clip)
-	);
-	t_box_intersect_no_standardize(
-		&bb, &T_BOX_GEOM(x, y, src->width, src->height)
-	);
-
-	/*
-	int32_t
-		bb_x0 = T_MAX(0, x),
-		bb_y0 = T_MAX(0, y),
-		bb_x1 = T_MIN(dst->width,  x + src->width),
-		bb_y1 = T_MIN(dst->height, y + src->height);
-	*/
+	t_box_intersect(&bb, &dst->blend.clip);
+	t_box_intersect(&bb, &T_BOX_GEOM(x, y, src->width, src->height));
 
 	uint32_t const dst_rgba_mask = 
 		(flags & T_BLEND_R ? 0 : T_MASK_R) |
@@ -345,26 +333,34 @@ t_frame_blend(
 			                    (dst_bg_rgba & dst_rgba_mask);
 		}
 	}
-
 	return T_OK;
 }
 
 enum t_status
 t_frame_rasterize(
-	struct t_frame *frame,
+	struct t_frame *src,
 	int32_t x,
 	int32_t y
 ) {
-	if (!frame) return T_ENULL;
+	if (!src) return T_ENULL;
 
 	int32_t vp_width, vp_height;
 	t_termsize(&vp_width, &vp_height);
 
+#if 1
+	struct t_box bb = T_BOX_SCREEN(vp_width, vp_height);
+	t_box_intersect(&bb, &T_BOX_GEOM(x, y, src->width, src->height));
+#else
+	struct t_box bb = {
+		.x0 = T_MAX(0, x),
+		.y0 = T_MAX(0, y),
+		.x1 = T_MIN(vp_width,  x + src->width),
+		.y1 = T_MIN(vp_height, y + src->height),
+	};
+	/*
 	int32_t
-		bb_x0 = T_MAX(0, x),
-		bb_y0 = T_MAX(0, y),
-		bb_x1 = T_MIN(vp_width,  x + frame->width),
-		bb_y1 = T_MIN(vp_height, y + frame->height);
+	*/
+#endif
 
 	/* any constants less than -1 required for init */
 	int32_t prior_x = -65535;
@@ -374,10 +370,10 @@ t_frame_rasterize(
 	int32_t prior_bg = T_RGBA(0, 0, 0, 0);
 	t_reset();
 
-	for (int32_t bb_y = bb_y0; bb_y < bb_y1; ++bb_y) {
-		for (int32_t bb_x = bb_x0; bb_x < bb_x1; ++bb_x) {
+	for (int32_t bb_y = bb.y0; bb_y < bb.y1; ++bb_y) {
+		for (int32_t bb_x = bb.x0; bb_x < bb.x1; ++bb_x) {
 
-			struct t_cell *cell = t__frame_cell_at(frame, bb_x - x, bb_y - y);
+			struct t_cell *cell = t__frame_cell_at(src, bb_x - x, bb_y - y);
 			if (!cell->ch) {
 				continue;
 			}

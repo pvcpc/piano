@@ -82,7 +82,7 @@ main_application()
 		double tm_now = t_elapsed();
 		double tm_graphics_delta = tm_now - tm_graphics_last;
 
-		if (tm_graphics_delta >= 1e-3) {
+		if (tm_graphics_delta >= 0) {
 			tm_graphics_last = tm_now;
 
 			/* update framebuffer */
