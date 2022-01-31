@@ -211,6 +211,22 @@ demo_frame_pattern()
 }
 
 int
+demo_frame_typeset()
+{
+	t_setup();
+
+	struct t_frame frame;
+	t_frame_create(&frame, 16, 16);
+
+	t_reset();
+	t_clear();
+	t_frame_rasterize(&frame, 0, 0);
+
+	t_cleanup();
+	return 0;
+}
+
+int
 demo_frame_blend()
 {
 	t_setup();
@@ -242,7 +258,9 @@ demo_frame_blend()
 
 	t_frame_blend(&bottom, &top, 
 		~(T_BLEND_CH),
-		T_RGB(255, 255, 255), T_RGB(255, 0, 0),
+		0,
+		T_RGB(255, 255, 255), 
+		T_RGB(255, 0, 0),
 		0, 0
 	);
 

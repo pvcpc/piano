@@ -83,6 +83,11 @@ struct t_box
 #define T_BOX_SCREEN(width, height) \
 	((struct t_box){ 0, 0, width, height })
 
+#define T_BOX_WIDTH(box_ptr) \
+	T_ABS((box_ptr)->x1 - (box_ptr)->x0)
+#define T_BOX_HEIGHT(box_ptr) \
+	T_ABS((box_ptr)->y1 - (box_ptr)->y0)
+
 static inline struct t_box *
 t_box_standardize(
 	struct t_box *dst
@@ -143,7 +148,7 @@ struct t_frame
 	int32_t width;
 	int32_t height;
 
-	/* persistent blend settings (reset with `t_frame_blend_reset()`) */
+	/* persistent blend settings (reset with `t_frame_context_blend_reset()`) */
 	struct {
 		struct t_box clip;
 	} blend;
@@ -155,27 +160,42 @@ struct t_frame
 
 enum t_frame_flag
 {
-	T_FRAME_SPACEHOLDER  = 0x01,
+	T_FRAME_SPACEHOLDER   = 0x01,
+};
+
+enum t_blend_mask
+{
+	/* destination/source sampling mode: if set, sample from source;
+	 * if not set, sample from destination. */
+	T_BLEND_R             = 0x0001,
+	T_BLEND_G             = 0x0002,
+	T_BLEND_B             = 0x0004,
+	T_BLEND_A             = 0x0008,
+	T_BLEND_CH            = 0x0010,
 };
 
 enum t_blend_flag
 {
-	/* destination/source sampling mode: if set, sample from source;
-	 * if not set, sample from destination. */
-	T_BLEND_R            = 0x0001,
-	T_BLEND_G            = 0x0002,
-	T_BLEND_B            = 0x0004,
-	T_BLEND_A            = 0x0008,
-	T_BLEND_CH           = 0x0010,
+	T_BLEND_ALTFG         = 0x0001,
+	T_BLEND_ALTBG         = 0x0002,
+};
 
-	/* source foreground/background color from additional 
-	 * flat_fg/bg_rgb parameters instead of either destination or
-	 * source. */
-	T_BLEND_FGOVERRIDE   = 0x0100,
-	T_BLEND_BGOVERRIDE   = 0x0200,
+enum t_typeset_flag
+{
+	T_TYPESET_ELLIPSES    = 0x0001,
+	T_TYPESET_WRAP        = 0x0002,
+	T_TYPESET_FLUSH_LEFT  = 0x0004,
+	T_TYPESET_FLUSH_RIGHT = 0x0008,
 
-	/* for ease of use */
-	T_BLEND_ALL          = 0xffff,
+	/* override the color wherever text is placed with the 
+	 * foreground/background specified in the parameters.
+	 */
+	T_TYPESET_FGOVERRIDE  = 0x0010,
+	T_TYPESET_BGOVERRIDE  = 0x0020,
+
+	/* whether to clamp the text bounding box into the frame (if not
+	 * clamped, text may clip out of the frame.) */
+	T_TYPESET_CLAMP_BOX   = 0x0100,
 };
 
 enum t_status
@@ -217,7 +237,7 @@ t_frame_paint(
 );
 
 enum t_status
-t_frame_blend_reset(
+t_frame_context_blend_reset(
 	struct t_frame *dst
 );
 
@@ -225,9 +245,10 @@ enum t_status
 t_frame_blend(
 	struct t_frame *dst,
 	struct t_frame *src,
+	enum t_blend_mask mask,
 	enum t_blend_flag flags,
-	int32_t flat_fg_rgb,
-	int32_t flat_bg_rgb,
+	int32_t alt_fg_rgb,
+	int32_t alt_bg_rgb,
 	int32_t x,
 	int32_t y
 );

@@ -279,7 +279,7 @@ keyboard_draw(
 
 	for (int32_t i = 0; i <= (oct_hi - oct_lo); ++i) {
 		t_frame_blend(dst, &g_frame_octave,
-			T_BLEND_ALL,
+			~(0), ~(0),
 			frame_fg_rgb,
 			frame_bg_rgb,
 			x + i * (g_frame_octave.width - 1), /* -1 to overlap borders */
@@ -299,7 +299,7 @@ keyboard_draw(
 		int32_t i_note = INDEX_NOTE(tone->ro.mi);
 
 		t_frame_blend(dst, &g_frame_array_key_overlays[i_note],
-			T_BLEND_ALL, 
+			~(0), ~(0),
 			over_fg_rgb,
 			over_bg_rgb,
 			x + i_oct * (g_frame_octave.width - 1), /* -1 to overlap borders */

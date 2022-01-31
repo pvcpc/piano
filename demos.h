@@ -15,6 +15,9 @@ extern int
 demo_frame_pattern();
 
 extern int
+demo_frame_typeset();
+
+extern int
 demo_frame_blend();
 
 #endif /* INCLUDE_DEMOS_H */

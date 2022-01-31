@@ -21,10 +21,14 @@
  */
 #define RASTERIZATION_DELTA_REQUIRED 1e-3
 
-static int
-main_application();
+#define TERM_WIDTH_MIN 32
+#define TERM_HEIGHT_MIN 24
 
-#define SELECTED_MAIN main_application
+static int
+main_app();
+
+/* see demos.h for more main selections */
+#define SELECTED_MAIN main_app
 
 int
 main()
@@ -32,12 +36,94 @@ main()
 	return SELECTED_MAIN();
 }
 
+struct appctx
+{
+	struct t_frame  frame_primary;
+	struct keyboard keyboard;
+
+	/* */
+	bool should_run;
+	double tm_now;
+	double tm_last;
+	double tm_last_graphics;
+	double tm_delta_graphics;
+
+	/* user configurable */
+	int32_t user_octave;
+	double tm_staccato_sustain;
+	double tm_required_delta_graphics;
+};
+
+static inline void
+app_do_human_staccato(
+	struct appctx *ac,
+	enum note note
+) {
+	keyboard_tone_activate(
+		&ac->keyboard,
+		ac->tm_now,
+		ac->tm_staccato_sustain,
+		MIDI_INDEX(note, ac->user_octave)
+	);
+}
+
+static inline void
+app_rasterize(
+	struct appctx *ac
+) {
+	/* clear before drawing in case of error to display */
+	t_reset();
+	t_clear();
+
+	/* */
+	int32_t term_w, term_h;
+	t_termsize(&term_w, &term_h);
+
+	if (term_w < TERM_WIDTH_MIN || term_h < TERM_HEIGHT_MIN) {
+		t_foreground_256_ex(0, 0, 0);
+		t_background_256_ex(255, 0, 0);
+		t_write_f("ERR TERM SIZE %dx%d < %dx%d",
+			term_w, term_h,
+			TERM_WIDTH_MIN, 
+			TERM_HEIGHT_MIN
+		);
+		return;
+	}
+
+	/* */
+	t_frame_resize(&ac->frame_primary, term_w, term_h);
+	t_frame_clear(&ac->frame_primary);
+
+	keyboard_tones_deactivate_expired(&ac->keyboard, ac->tm_now);
+	keyboard_draw(&ac->frame_primary, &ac->keyboard,
+		T_RGB(128, 128, 128), T_WASHED,
+		T_RGB(192, 128,  64), T_WASHED,
+		0, 0
+	);
+
+	/* rasterize */
+	t_frame_rasterize(&ac->frame_primary, 0, 0);
+
+#ifdef TC_DEBUG_METRICS
+	t_cursor_pos(1, term_h);
+	t_foreground_256_ex(0, 0, 0);
+	t_background_256_ex(255, 255, 255);
+	t_write_f("Stored: %u, Flushed: %u",
+		t_debug_write_nstored(),
+		t_debug_write_nflushed()
+	);
+	t_debug_write_metrics_clear();
+#endif
+	t_flush();
+}
+
 static int
-main_application()
+main_app()
 {
 	enum t_status stat;
+	struct appctx ac;
 
-	/* initialize supports */
+	/* initialize */
 	stat = keyboard_support_setup();
 	if (stat < 0) {
 		fprintf(stderr, "Failed to initialize virtual keyboard support: %s\n",
@@ -46,8 +132,7 @@ main_application()
 		goto e_init_keyboard;
 	}
 
-	struct t_frame frame_primary;
-	stat = t_frame_create(&frame_primary, 0, 0);
+	stat = t_frame_create(&ac.frame_primary, 0, 0);
 	if (stat < 0) {
 		fprintf(stderr, "Failed to create primary framebuffer: %s\n",
 			t_status_string(stat)
@@ -55,7 +140,7 @@ main_application()
 		goto e_init_frame;
 	}
 
-	struct keyboard keyboard = {
+	ac.keyboard = (struct keyboard) {
 		.mi_lo = MIDI_INDEX(NOTE_C, 3),
 		.mi_hi = MIDI_INDEX(NOTE_B, 5),
 	};
@@ -63,117 +148,76 @@ main_application()
 	/* setup, ui variables, and ui loop */
 	t_setup();
 
-	double tm_graphics_last = t_elapsed();
-	bool should_run = true;
+	ac.should_run = true;
+	ac.tm_last = t_elapsed();
+	ac.tm_last_graphics = t_elapsed();
+	
+	ac.user_octave = 4;
+	ac.tm_staccato_sustain = 0.1;
+	ac.tm_required_delta_graphics = RASTERIZATION_DELTA_REQUIRED;
 
-	double tm_staccato_sustain = 0.25;
-	uint8_t gry = 0;
-	int32_t user_octave = 4;
+	while (ac.should_run) {
+		ac.tm_now = t_elapsed();
+		ac.tm_delta_graphics = ac.tm_now - ac.tm_last_graphics;
 
-#define MAIN__HUMAN_STACCATO(note)     \
-	keyboard_tone_activate(            \
-		&keyboard,                     \
-		tm_now,                        \
-		tm_staccato_sustain,           \
-		MIDI_INDEX(note, user_octave)  \
-	)
-
-	while (should_run) {
-		double tm_now = t_elapsed();
-		double tm_graphics_delta = tm_now - tm_graphics_last;
-
-		if (tm_graphics_delta >= 0) {
-			tm_graphics_last = tm_now;
-
-			/* update framebuffer */
-			int32_t term_w, term_h;
-			t_termsize(&term_w, &term_h);
-
-			t_frame_resize(&frame_primary, term_w, term_h);
-			t_frame_clear(&frame_primary);
-
-			gry = (uint8_t) (127 * sin(tm_now) + 128);
-			keyboard_tones_deactivate_expired(&keyboard, tm_now);
-			keyboard_draw(&frame_primary, &keyboard,
-				T_RGB(gry, gry, gry), T_WASHED,
-				T_RGB(192, 128,  64), T_WASHED,
-				0, 0
-			);
-
-			/* rasterize */
-			t_reset();
-			t_clear();
-
-			t_frame_rasterize(&frame_primary, 0, 0);
-
-#ifdef TC_DEBUG_METRICS
-			t_cursor_pos(1, term_h);
-			t_foreground_256_ex(0, 0, 0);
-			t_background_256_ex(255, 255, 255);
-			t_write_f("Stored: %u, Flushed: %u, GRY: %u",
-				t_debug_write_nstored(),
-				t_debug_write_nflushed(),
-				gry
-			);
-			t_debug_write_metrics_clear();
-#endif
-			t_flush();
+		if (ac.tm_delta_graphics >= ac.tm_required_delta_graphics) {
+			app_rasterize(&ac);
+			ac.tm_last_graphics = ac.tm_now;
 		}
 
 		switch (t_poll()) {
 		/* keyboard keybinds */
 		case T_POLL_CODE(0, 'q'):
-			MAIN__HUMAN_STACCATO(NOTE_C);
+			app_do_human_staccato(&ac, NOTE_C);
 			break;
 		case T_POLL_CODE(0, '2'):
-			MAIN__HUMAN_STACCATO(NOTE_Cs);
+			app_do_human_staccato(&ac, NOTE_Cs);
 			break;
 		case T_POLL_CODE(0, 'w'):
-			MAIN__HUMAN_STACCATO(NOTE_D);
+			app_do_human_staccato(&ac, NOTE_D);
 			break;
 		case T_POLL_CODE(0, '3'):
-			MAIN__HUMAN_STACCATO(NOTE_Ds);
+			app_do_human_staccato(&ac, NOTE_Ds);
 			break;
 		case T_POLL_CODE(0, 'e'):
-			MAIN__HUMAN_STACCATO(NOTE_E);
+			app_do_human_staccato(&ac, NOTE_E);
 			break;
 		case T_POLL_CODE(0, 'r'):
-			MAIN__HUMAN_STACCATO(NOTE_F);
+			app_do_human_staccato(&ac, NOTE_F);
 			break;
 		case T_POLL_CODE(0, '5'):
-			MAIN__HUMAN_STACCATO(NOTE_Fs);
+			app_do_human_staccato(&ac, NOTE_Fs);
 			break;
 		case T_POLL_CODE(0, 't'):
-			MAIN__HUMAN_STACCATO(NOTE_G);
+			app_do_human_staccato(&ac, NOTE_G);
 			break;
 		case T_POLL_CODE(0, '6'):
-			MAIN__HUMAN_STACCATO(NOTE_Gs);
+			app_do_human_staccato(&ac, NOTE_Gs);
 			break;
 		case T_POLL_CODE(0, 'y'):
-			MAIN__HUMAN_STACCATO(NOTE_A);
+			app_do_human_staccato(&ac, NOTE_A);
 			break;
 		case T_POLL_CODE(0, '7'):
-			MAIN__HUMAN_STACCATO(NOTE_As);
+			app_do_human_staccato(&ac, NOTE_As);
 			break;
 		case T_POLL_CODE(0, 'u'):
-			MAIN__HUMAN_STACCATO(NOTE_B);
+			app_do_human_staccato(&ac, NOTE_B);
 			break;
 
 		/* administrative keybinds */
 		case T_POLL_CODE(0, 'Q'):
-			should_run = 0;
+			ac.should_run = 0;
 			break;
 		}
 	}
 
 	/* done */
-	t_frame_destroy(&frame_primary);
 	t_reset();
 	t_clear();
 	t_cleanup();
 
 e_init_frame:
-	t_frame_destroy(&frame_primary);
+	t_frame_destroy(&ac.frame_primary);
 e_init_keyboard:
 	keyboard_support_cleanup();
 	return stat > 0 ? 0 : 1;
