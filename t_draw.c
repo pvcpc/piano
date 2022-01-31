@@ -89,7 +89,7 @@ static inline void
 t__frame_reset(
 	struct t_frame *frame
 ) {
-	t_frame_context_blend_reset(frame);
+	t_frame_context_reset(frame);
 }
 
 static inline struct t_cell *
@@ -250,14 +250,14 @@ t_frame_clear(
 enum t_status
 t_frame_paint(
 	struct t_frame *dst,
-	int32_t fg_rgba,
-	int32_t bg_rgba
+	uint32_t fg_rgba,
+	uint32_t bg_rgba
 ) {
 	if (!dst) return T_ENULL;
 
-	for (uint32_t j = 0; j < dst->height; ++j) {
-		for (uint32_t i = 0; i < dst->width; ++i) {
-			struct t_cell *cell = t__frame_cell_at(dst, i, j);
+	for (uint32_t y = 0; y < dst->height; ++y) {
+		for (uint32_t x = 0; x < dst->width; ++x) {
+			struct t_cell *cell = t__frame_cell_at(dst, x, y);
 			cell->fg_rgba = fg_rgba;
 			cell->bg_rgba = bg_rgba;
 		}
@@ -266,15 +266,42 @@ t_frame_paint(
 }
 
 enum t_status
-t_frame_context_blend_reset(
+t_frame_map_one(
+	struct t_frame *dst,
+	enum t_map_flag flags,
+	uint32_t alt_fg_rgba,
+	uint32_t alt_bg_rgba,
+	char from,
+	char to
+) {
+	if (!dst) return T_ENULL;
+
+	struct t_box bb = T_BOX_SCREEN(dst->width, dst->height);
+	t_box_intersect(&bb, &dst->context.clip);
+
+	for (int32_t y = bb.y0; y < bb.y1; ++y) {
+		for (int32_t x = bb.x0; x < bb.x1; ++x) {
+			struct t_cell *cell = t__frame_cell_at(dst, x, y);
+			if (cell->ch == from) {
+				if (flags & T_MAP_CH) cell->ch = to;
+				if (flags & T_MAP_ALTFG) cell->fg_rgba = alt_fg_rgba;
+				if (flags & T_MAP_ALTBG) cell->bg_rgba = alt_bg_rgba;
+			}
+		}
+	}
+	return T_OK;
+}
+
+enum t_status
+t_frame_context_reset(
 	struct t_frame *dst
 ) {
 	if (!dst) return T_ENULL;
 
-	dst->blend.clip.x0 = INT32_MIN;
-	dst->blend.clip.y0 = INT32_MIN;
-	dst->blend.clip.x1 = INT32_MAX;
-	dst->blend.clip.y1 = INT32_MAX;
+	dst->context.clip.x0 = INT32_MIN;
+	dst->context.clip.y0 = INT32_MIN;
+	dst->context.clip.x1 = INT32_MAX;
+	dst->context.clip.y1 = INT32_MAX;
 
 	return T_OK;
 }
@@ -285,15 +312,15 @@ t_frame_blend(
 	struct t_frame *src,
 	enum t_blend_mask mask,
 	enum t_blend_flag flags,
-	int32_t flat_fg_rgba,
-	int32_t flat_bg_rgba,
+	uint32_t flat_fg_rgba,
+	uint32_t flat_bg_rgba,
 	int32_t x,
 	int32_t y
 ) {
 	if (!dst || !src) return T_ENULL;
 
 	struct t_box bb = T_BOX_SCREEN(dst->width, dst->height);
-	t_box_intersect(&bb, &dst->blend.clip);
+	t_box_intersect(&bb, &dst->context.clip);
 	t_box_intersect(&bb, &T_BOX_GEOM(x, y, src->width, src->height));
 
 	uint32_t const dst_rgba_mask = 
@@ -345,11 +372,28 @@ t_frame_rasterize(
 ) {
 	if (!src) return T_ENULL;
 
-	int32_t vp_width, vp_height;
-	t_termsize(&vp_width, &vp_height);
+	int32_t term_w, term_h;
+	t_termsize(&term_w, &term_h);
+
+	/*
+	struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
+	t_box_intersect(&src_bb, &src->context.clip);
 
 	struct t_box bb = T_BOX_SCREEN(vp_width, vp_height);
 	t_box_intersect(&bb, &T_BOX_GEOM(x, y, src->width, src->height));
+	*/
+
+	struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
+	t_box_intersect(&src_bb, &src->context.clip);
+	t_box_translate(&src_bb, x, y); /* only for term_bb computation below */
+
+	struct t_box term_bb = T_BOX_SCREEN(term_w, term_h);
+	t_box_intersect(&term_bb, &src_bb);
+
+	t_box_translate(&src_bb, -x, -y); /* translate back so we can sample */
+
+	int32_t const true_w = T_BOX_WIDTH(&term_bb);
+	int32_t const true_h = T_BOX_HEIGHT(&term_bb);
 
 	/* any constants less than -1 required for init */
 	int32_t prior_x = -65535;
@@ -359,18 +403,30 @@ t_frame_rasterize(
 	int32_t prior_bg = T_RGBA(0, 0, 0, 0);
 	t_reset();
 
+#if 0
 	for (int32_t bb_y = bb.y0; bb_y < bb.y1; ++bb_y) {
 		for (int32_t bb_x = bb.x0; bb_x < bb.x1; ++bb_x) {
+#endif
+	for (int32_t y = 0; y < true_h; ++y) {
+		for (int32_t x = 0; x < true_w; ++x) {
 
-			struct t_cell *cell = t__frame_cell_at(src, bb_x - x, bb_y - y);
+			int32_t const
+				src_x = src_bb.x0 + x,
+				src_y = src_bb.y0 + y;
+
+			// struct t_cell *cell = t__frame_cell_at(src, bb_x - x, bb_y - y);
+			struct t_cell *cell = t__frame_cell_at(src, src_x, src_y);
 			if (!cell->ch) {
 				continue;
 			}
 
+			int32_t const
+				term_x = term_bb.x0 + x,
+				term_y = term_bb.y0 + y;
+
 			/* CURSOR POS */
-			/* "bb_x-1" to account for character advancing right. */
-			int32_t delta_x = (bb_x-1) - prior_x;
-			int32_t delta_y = bb_y - prior_y;
+			int32_t delta_x = term_x - prior_x;
+			int32_t delta_y = term_y - prior_y;
 
 			/* @SPEED(max): take a look into this a bit more */
 			/* @NOTE(max): converting delta_y into \v chars does NOT
@@ -378,7 +434,7 @@ t_frame_rasterize(
 			 */
 			/* minimaly optimize byte usage for relocation */
 			if (delta_x && delta_y) {
-				t_cursor_pos(bb_x + 1, bb_y + 1);
+				t_cursor_pos(term_x + 1, term_y + 1);
 			}
 			else if (delta_x > 0) {
 				t_cursor_forward(delta_x);
@@ -392,8 +448,8 @@ t_frame_rasterize(
 			else if (delta_y < 0) {
 				t_cursor_up(delta_y);
 			}
-			prior_x = bb_x;
-			prior_y = bb_y;
+			prior_x = term_x + 1; /* to account for cursor advancing right when writing */
+			prior_y = term_y;
 			
 			/* COLOR */
 			uint8_t const fg_alpha = T_ALPHA(cell->fg_rgba);

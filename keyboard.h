@@ -80,22 +80,29 @@ note_string(
 
 struct keyboard_tone
 {
-	struct { /* client-side should read only */
-		double               tm_start;
-		double               tm_sustain; /* < 0 indicates infinite sustain */
-		uint8_t              mi;
-	} ro;
+	double               _tm_start;
+	double               _tm_sustain; /* < 0 indicates infinite sustain */
+	uint8_t              _mi;
 };
 
 struct keyboard
 {
-	uint8_t                  mi_hi; /* highest visible index on screen */
-	uint8_t                  mi_lo; /* lowest visible index on screen */
+	uint8_t              mi_hi; /* highest visible index on screen */
+	uint8_t              mi_lo; /* lowest visible index on screen */
 
-	struct { /* client-side should read only */
-		struct keyboard_tone tones_active [KEYBOARD_POLYPHONY];
-		uint32_t             tone_pointer;
-	} ro;
+	struct {
+		uint32_t         frame_fg;
+		uint32_t         frame_bg;
+
+		uint32_t         idle_white;
+		uint32_t         idle_black;
+		uint32_t         active_white;
+		uint32_t         active_black;
+	} color;
+
+	struct t_frame       _frame_scratch;
+	struct keyboard_tone _tones_active [KEYBOARD_POLYPHONY];
+	uint32_t             _tone_pointer;
 };
 
 /* use in keyboard_tone_activate when no starting time point is available. */
@@ -108,6 +115,16 @@ keyboard_support_setup();
 
 void
 keyboard_support_cleanup();
+
+enum t_status
+keyboard_create(
+	struct keyboard *kbd
+);
+
+void
+keyboard_destroy(
+	struct keyboard *kbd
+);
 
 enum t_status
 keyboard_tone_activate(
@@ -133,10 +150,6 @@ enum t_status
 keyboard_draw(
 	struct t_frame *dst,
 	struct keyboard *kbd,
-	int32_t frame_fg_rgb,
-	int32_t frame_bg_rgb,
-	int32_t over_fg_rgb,
-	int32_t over_bg_rgb,
 	int32_t x,
 	int32_t y
 );

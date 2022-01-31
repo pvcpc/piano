@@ -21,8 +21,8 @@
  */
 #define RASTERIZATION_DELTA_REQUIRED 1e-3
 
-#define TERM_WIDTH_MIN 32
-#define TERM_HEIGHT_MIN 24
+#define TERM_WIDTH_MIN 24
+#define TERM_HEIGHT_MIN 16
 
 static int
 main_app();
@@ -80,13 +80,15 @@ app_rasterize(
 	t_termsize(&term_w, &term_h);
 
 	if (term_w < TERM_WIDTH_MIN || term_h < TERM_HEIGHT_MIN) {
-		t_foreground_256_ex(0, 0, 0);
+		t_foreground_256_ex(255, 255, 255);
 		t_background_256_ex(255, 0, 0);
+		t_cursor_pos(1, 1);
 		t_write_f("ERR TERM SIZE %dx%d < %dx%d",
 			term_w, term_h,
 			TERM_WIDTH_MIN, 
 			TERM_HEIGHT_MIN
 		);
+		t_flush();
 		return;
 	}
 
@@ -95,11 +97,7 @@ app_rasterize(
 	t_frame_clear(&ac->frame_primary);
 
 	keyboard_tones_deactivate_expired(&ac->keyboard, ac->tm_now);
-	keyboard_draw(&ac->frame_primary, &ac->keyboard,
-		T_RGB(128, 128, 128), T_WASHED,
-		T_RGB(192, 128,  64), T_WASHED,
-		0, 0
-	);
+	keyboard_draw(&ac->frame_primary, &ac->keyboard, 0, 0);
 
 	/* rasterize */
 	t_frame_rasterize(&ac->frame_primary, 0, 0);
@@ -108,9 +106,11 @@ app_rasterize(
 	t_cursor_pos(1, term_h);
 	t_foreground_256_ex(0, 0, 0);
 	t_background_256_ex(255, 255, 255);
-	t_write_f("Stored: %u, Flushed: %u",
+	t_write_f("Stored: %u, Flushed: %u, W: %d, H: %d",
 		t_debug_write_nstored(),
-		t_debug_write_nflushed()
+		t_debug_write_nflushed(),
+		term_w,
+		term_h
 	);
 	t_debug_write_metrics_clear();
 #endif
@@ -129,8 +129,19 @@ main_app()
 		fprintf(stderr, "Failed to initialize virtual keyboard support: %s\n",
 			t_status_string(stat)
 		);
+		goto e_init_keyboard_support;
+	}
+
+	stat = keyboard_create(&ac.keyboard);
+	if (stat < 0) {
+		fprintf(stderr, "Failed to create virtual keyboard: %s\n",
+			t_status_string(stat)
+		);
 		goto e_init_keyboard;
 	}
+
+	ac.keyboard.mi_lo = MIDI_INDEX(NOTE_Cs, 3);
+	ac.keyboard.mi_hi = MIDI_INDEX(NOTE_B,  5);
 
 	stat = t_frame_create(&ac.frame_primary, 0, 0);
 	if (stat < 0) {
@@ -139,11 +150,6 @@ main_app()
 		);
 		goto e_init_frame;
 	}
-
-	ac.keyboard = (struct keyboard) {
-		.mi_lo = MIDI_INDEX(NOTE_C, 3),
-		.mi_hi = MIDI_INDEX(NOTE_B, 5),
-	};
 
 	/* setup, ui variables, and ui loop */
 	t_setup();
@@ -219,6 +225,8 @@ main_app()
 e_init_frame:
 	t_frame_destroy(&ac.frame_primary);
 e_init_keyboard:
+	keyboard_destroy(&ac.keyboard);
+e_init_keyboard_support:
 	keyboard_support_cleanup();
 	return stat > 0 ? 0 : 1;
 }

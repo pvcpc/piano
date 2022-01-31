@@ -132,6 +132,19 @@ t_box_intersect(
 	);
 }
 
+static inline struct t_box *
+t_box_translate(
+	struct t_box *dst,
+	int32_t x,
+	int32_t y
+) {
+	dst->x0 += x;
+	dst->y0 += y;
+	dst->x1 += x;
+	dst->y1 += y;
+	return dst;
+}
+
 /* +--- FRAME DRAWING ---------------------------------------------+ */
 struct t_cell
 {
@@ -148,10 +161,10 @@ struct t_frame
 	int32_t width;
 	int32_t height;
 
-	/* persistent blend settings (reset with `t_frame_context_blend_reset()`) */
+	/* context (reset with `t_frame_context_reset()`) */
 	struct {
 		struct t_box clip;
-	} blend;
+	} context;
 
 	/* internal */
 	uint32_t _true_width;
@@ -161,6 +174,13 @@ struct t_frame
 enum t_frame_flag
 {
 	T_FRAME_SPACEHOLDER   = 0x01,
+};
+
+enum t_map_flag
+{
+	T_MAP_CH              = 0x0001,
+	T_MAP_ALTFG           = 0x0002,
+	T_MAP_ALTBG           = 0x0004,
 };
 
 enum t_blend_mask
@@ -232,12 +252,22 @@ t_frame_clear(
 enum t_status
 t_frame_paint(
 	struct t_frame *dst,
-	int32_t fg_rgb,
-	int32_t bg_rgb
+	uint32_t fg_rgb,
+	uint32_t bg_rgb
 );
 
 enum t_status
-t_frame_context_blend_reset(
+t_frame_map_one(
+	struct t_frame *dst,
+	enum t_map_flag flags,
+	uint32_t alt_fg_rgba,
+	uint32_t alt_bg_rgba,
+	char from,
+	char to
+);
+
+enum t_status
+t_frame_context_reset(
 	struct t_frame *dst
 );
 
@@ -247,8 +277,8 @@ t_frame_blend(
 	struct t_frame *src,
 	enum t_blend_mask mask,
 	enum t_blend_flag flags,
-	int32_t alt_fg_rgb,
-	int32_t alt_bg_rgb,
+	uint32_t alt_fg_rgb,
+	uint32_t alt_bg_rgb,
 	int32_t x,
 	int32_t y
 );
