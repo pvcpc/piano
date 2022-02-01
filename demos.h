@@ -14,6 +14,12 @@ demo_midi_parse();
 extern int
 demo_frame_pattern();
 
+extern int 
+demo_frame_map_one();
+
+extern int 
+demo_frame_coordinate_space();
+
 extern int
 demo_frame_typeset();
 

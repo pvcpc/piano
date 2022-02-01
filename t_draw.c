@@ -78,6 +78,43 @@ t__background_256(
 }
 
 /* +--- FRAME DRAWING ---------------------------------------------+ */
+#define T__COORD_INF 65535
+
+static inline int32_t
+t__coordinate_system_transform(
+	struct t_coordinate_system *system,
+	int32_t container_size,
+	int32_t object_size,
+	int32_t c
+) {
+	return 
+		(system->gravity   * container_size) / 2 +
+		(system->alignment * object_size) / 2 +
+		(system->direction * c) +
+		(system->direction * system->origin);
+}
+
+static inline struct t_box *
+t__coordinate_system_transform_box(
+	struct t_coordinate_system *xsys,
+	struct t_coordinate_system *ysys,
+	struct t_box *dst,
+	struct t_box *src,
+	struct t_box *container
+) {
+	dst->x0 = t__coordinate_system_transform(
+		xsys, T_BOX_WIDTH(container), 0, src->x0);
+	dst->x1 = t__coordinate_system_transform(
+		xsys, T_BOX_WIDTH(container), 0, src->x1);
+
+	dst->y0 = t__coordinate_system_transform(
+		ysys, T_BOX_HEIGHT(container), 0, src->y0);
+	dst->y1 = t__coordinate_system_transform(
+		ysys, T_BOX_HEIGHT(container), 0, src->y1);
+
+	return t_box_standardize(dst, dst);
+}
+
 static inline void
 t__frame_zero(
 	struct t_frame *frame
@@ -89,7 +126,7 @@ static inline void
 t__frame_reset(
 	struct t_frame *frame
 ) {
-	t_frame_context_reset(frame);
+	t_frame_context_reset_everything(frame);
 }
 
 static inline struct t_cell *
@@ -233,6 +270,107 @@ t_frame_resize(
 }
 
 enum t_status
+t_frame_context_set_gravity(
+	struct t_frame *dst,
+	enum t_gravity xgrav,
+	enum t_gravity ygrav
+) {
+	if (!dst) return T_ENULL;
+
+	dst->context.x.gravity = xgrav;
+	dst->context.y.gravity = ygrav;
+
+	return T_OK;
+}
+
+enum t_status
+t_frame_context_set_alignment(
+	struct t_frame *dst,
+	enum t_alignment xalign,
+	enum t_alignment yalign
+) {
+	if (!dst) return T_ENULL;
+
+	dst->context.x.alignment = xalign;
+	dst->context.y.alignment = yalign;
+
+	return T_OK;
+}
+
+enum t_status
+t_frame_context_set_direction(
+	struct t_frame *dst,
+	enum t_direction xdir,
+	enum t_direction ydir
+) {
+	if (!dst) return T_ENULL;
+
+	dst->context.x.direction = xdir;
+	dst->context.y.direction = ydir;
+
+	return T_OK;
+}
+
+enum t_status
+t_frame_context_set_origin(
+	struct t_frame *dst,
+	int32_t x,
+	int32_t y
+) {
+	if (!dst) return T_ENULL;
+
+	dst->context.x.origin = x;
+	dst->context.y.origin = y;
+
+	return T_OK;
+}
+
+enum t_status
+t_frame_context_reset_clip(
+	struct t_frame *dst
+) {
+	if (!dst) return T_ENULL;
+
+	dst->context.clip.x0 = -T__COORD_INF;
+	dst->context.clip.y0 = -T__COORD_INF;
+	dst->context.clip.x1 =  T__COORD_INF;
+	dst->context.clip.y1 =  T__COORD_INF;
+
+	return T_OK;
+}
+
+enum t_status
+t_frame_context_reset_coordinate_system(
+	struct t_frame *dst
+) {
+	if (!dst) return T_ENULL;
+
+	dst->context.x.gravity   = T_GRAVITY_LEFT;
+	dst->context.x.alignment = T_ALIGNMENT_LEFT;
+	dst->context.x.direction = T_DIRECTION_L2R;
+	dst->context.x.origin    = 0;
+
+	dst->context.y.gravity   = T_GRAVITY_TOP;
+	dst->context.y.alignment = T_ALIGNMENT_TOP;
+	dst->context.y.direction = T_DIRECTION_T2B;
+	dst->context.y.origin    = 0;
+
+	return T_OK;
+}
+
+enum t_status
+t_frame_context_reset_everything(
+	struct t_frame *dst
+) {
+	if (!dst) return T_ENULL;
+
+	t_frame_context_reset_clip(dst);
+	t_frame_context_reset_coordinate_system(dst);
+
+	return T_OK;
+}
+
+enum t_status
 t_frame_clear(
 	struct t_frame *frame
 ) {
@@ -277,7 +415,7 @@ t_frame_map_one(
 	if (!dst) return T_ENULL;
 
 	struct t_box bb = T_BOX_SCREEN(dst->width, dst->height);
-	t_box_intersect(&bb, &dst->context.clip);
+	t_box_intersect(&bb, &bb, &dst->context.clip);
 
 	for (int32_t y = bb.y0; y < bb.y1; ++y) {
 		for (int32_t x = bb.x0; x < bb.x1; ++x) {
@@ -289,20 +427,6 @@ t_frame_map_one(
 			}
 		}
 	}
-	return T_OK;
-}
-
-enum t_status
-t_frame_context_reset(
-	struct t_frame *dst
-) {
-	if (!dst) return T_ENULL;
-
-	dst->context.clip.x0 = INT32_MIN;
-	dst->context.clip.y0 = INT32_MIN;
-	dst->context.clip.x1 = INT32_MAX;
-	dst->context.clip.y1 = INT32_MAX;
-
 	return T_OK;
 }
 
@@ -320,8 +444,8 @@ t_frame_blend(
 	if (!dst || !src) return T_ENULL;
 
 	struct t_box bb = T_BOX_SCREEN(dst->width, dst->height);
-	t_box_intersect(&bb, &dst->context.clip);
-	t_box_intersect(&bb, &T_BOX_GEOM(x, y, src->width, src->height));
+	t_box_intersect(&bb, &bb, &dst->context.clip);
+	t_box_intersect(&bb, &bb, &T_BOX_GEOM(x, y, src->width, src->height));
 
 	uint32_t const dst_rgba_mask = 
 		(mask & T_BLEND_R ? 0 : T_MASK_R) |
@@ -375,44 +499,42 @@ t_frame_rasterize(
 	int32_t term_w, term_h;
 	t_termsize(&term_w, &term_h);
 
-	/*
-	struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
-	t_box_intersect(&src_bb, &src->context.clip);
+	/* coordinate transform into canonical upper-left origin, positive 
+	 * x right, positive y down system */
+	x = t__coordinate_system_transform(
+		&src->context.x, term_w, src->width, x);
+	y = t__coordinate_system_transform(
+		&src->context.y, term_h, src->height, y);
 
-	struct t_box bb = T_BOX_SCREEN(vp_width, vp_height);
-	t_box_intersect(&bb, &T_BOX_GEOM(x, y, src->width, src->height));
-	*/
+	struct t_box screen_bb = T_BOX_SCREEN(term_w, term_h);
+	struct t_box src_bb = T_BOX_GEOM(x, y, src->width, src->height);
 
-	struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
-	t_box_intersect(&src_bb, &src->context.clip);
-	t_box_translate(&src_bb, x, y); /* only for term_bb computation below */
+	struct t_box clip_bb;
+	t__coordinate_system_transform_box(&src->context.x, &src->context.y,
+		&clip_bb, &src->context.clip, &screen_bb);
 
-	struct t_box term_bb = T_BOX_SCREEN(term_w, term_h);
-	t_box_intersect(&term_bb, &src_bb);
+	struct t_box term_bb;
+	t_box_intersect(&src_bb, &src_bb, &clip_bb);
+	t_box_intersect(&term_bb, &screen_bb, &src_bb);
 
-	t_box_translate(&src_bb, -x, -y); /* translate back so we can sample */
+	t_box_translate(&src_bb, &term_bb, -x, -y);
 
 	int32_t const true_w = T_BOX_WIDTH(&term_bb);
 	int32_t const true_h = T_BOX_HEIGHT(&term_bb);
 
 	/* any constants less than -1 required for init */
-	int32_t prior_x = -65535;
-	int32_t prior_y = -65535;
+	int32_t prior_x = -T__COORD_INF;
+	int32_t prior_y = -T__COORD_INF;
 
 	int32_t prior_fg = T_RGBA(0, 0, 0, 0);
 	int32_t prior_bg = T_RGBA(0, 0, 0, 0);
 	t_reset();
 
-#if 0
-	for (int32_t bb_y = bb.y0; bb_y < bb.y1; ++bb_y) {
-		for (int32_t bb_x = bb.x0; bb_x < bb.x1; ++bb_x) {
-#endif
-	for (int32_t y = 0; y < true_h; ++y) {
-		for (int32_t x = 0; x < true_w; ++x) {
-
+	for (int32_t j = 0; j < true_h; ++j) {
+		for (int32_t i = 0; i < true_w; ++i) {
 			int32_t const
-				src_x = src_bb.x0 + x,
-				src_y = src_bb.y0 + y;
+				src_x = src_bb.x0 + i,
+				src_y = src_bb.y0 + j;
 
 			// struct t_cell *cell = t__frame_cell_at(src, bb_x - x, bb_y - y);
 			struct t_cell *cell = t__frame_cell_at(src, src_x, src_y);
@@ -421,8 +543,8 @@ t_frame_rasterize(
 			}
 
 			int32_t const
-				term_x = term_bb.x0 + x,
-				term_y = term_bb.y0 + y;
+				term_x = term_bb.x0 + i,
+				term_y = term_bb.y0 + j;
 
 			/* CURSOR POS */
 			int32_t delta_x = term_x - prior_x;
@@ -470,21 +592,6 @@ t_frame_rasterize(
 					t__background_256(cell->bg_rgba);
 				}
 			}
-#if 0
-			if (!fg_alpha || !bg_alpha) {
-				t_reset();
-				prior_fg = T_WASHED;
-				prior_bg = T_WASHED;
-			}
-			if (fg_alpha > 0 && cell->fg_rgba != prior_fg) {
-				prior_fg = cell->fg_rgba;
-				t__foreground_256(cell->fg_rgba);
-			}
-			if (bg_alpha > 0 && cell->bg_rgba != prior_bg) {
-				prior_bg = cell->bg_rgba;
-				t__background_256(cell->bg_rgba);
-			}
-#endif
 
 			/* WRITE OUT */
 			enum t_status stat;

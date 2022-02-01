@@ -143,6 +143,11 @@ main_app()
 	ac.keyboard.mi_lo = MIDI_INDEX(NOTE_Cs, 3);
 	ac.keyboard.mi_hi = MIDI_INDEX(NOTE_B,  5);
 
+	ac.keyboard.color.frame_fg = T_RGB(96, 96, 96);
+	ac.keyboard.color.idle_white = T_RGB(96, 96, 96);
+	ac.keyboard.color.active_white = T_RGB(128, 128, 128);
+	ac.keyboard.color.active_black = T_RGB(96, 96, 96);
+
 	stat = t_frame_create(&ac.frame_primary, 0, 0);
 	if (stat < 0) {
 		fprintf(stderr, "Failed to create primary framebuffer: %s\n",

@@ -372,30 +372,5 @@ keyboard_draw(
 			y
 		);
 	}
-#if 0
-			x + i * (g_frame_octave.width - 1), /* -1 to overlap borders */
-			y
-	}
-
-	for (uint32_t i = 0; i < kbd->_tone_pointer; ++i) {
-		struct keyboard_tone *tone = &kbd->_tones_active[i];
-
-		if (tone->_mi < kbd->_mi_lo || kbd->_mi_hi < tone->_mi) {
-			/* tone out of range of visual rendering */
-			continue;
-		}
-
-		int32_t i_oct = INDEX_OCTAVE_ZB(tone->_mi) - oct_lo;
-		int32_t i_note = INDEX_NOTE(tone->_mi);
-
-		t_frame_blend(dst, &g_frame_array_key_overlays[i_note],
-			~(0), ~(0),
-			over_fg_rgb,
-			over_bg_rgb,
-			x + i_oct * (g_frame_octave.width - 1), /* -1 to overlap borders */
-			y
-		);
-	}
-#endif
 	return T_OK;
 }

@@ -211,6 +211,62 @@ demo_frame_pattern()
 }
 
 int
+demo_frame_map_one()
+{
+	t_setup();
+
+	struct t_frame frame;
+	t_frame_create_pattern(&frame, 0,
+		"+----+\n"
+		"|    |\n"
+		"|    |\n"
+		"+----+\n"
+	);
+	
+	t_frame_map_one(&frame, T_MAP_CH | T_MAP_ALTFG | T_MAP_ALTBG,
+		T_RGB(0, 0, 0),
+		T_RGB(255, 255, 255),
+		' ', 'M'
+	);
+	
+	t_reset();
+	t_clear();
+	t_frame_rasterize(&frame, 0, 0);
+
+	t_cleanup();
+	return 0;
+}
+
+int
+demo_frame_coordinate_system()
+{
+	t_setup();
+
+	struct t_frame frame;
+	t_frame_create_pattern(&frame, 0,
+		"+----+\n"
+		"|    |\n"
+		"|    |\n"
+		"+----+\n"
+	);
+
+	/* mathematically canonical coordinate system (bottom left of
+	 * the screen), positive x right, positive y up */
+#if 0
+	frame.context.xcoord.gravity = T_GRAVITY_LEFT;
+	frame.context.xcoord.axis    = T_AXIS_L2R;
+	frame.context.xcoord.origin  = 0;
+
+	frame.context.ycoord.gravity = T_GRAVITY_BOTTOM;
+	frame.context.ycoord.axis    = T_AXIS_B2T;
+	frame.context.ycoord.origin  = 0;
+#endif
+
+	t_cleanup();
+	return 0;
+}
+
+int
 demo_frame_typeset()
 {
 	t_setup();
