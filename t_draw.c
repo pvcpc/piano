@@ -506,16 +506,16 @@ t_frame_rasterize(
 	y = t__coordinate_system_transform(
 		&src->context.y, term_h, src->height, y);
 
-	struct t_box screen_bb = T_BOX_SCREEN(term_w, term_h);
+	struct t_box dst_bb = T_BOX_SCREEN(term_w, term_h);
 	struct t_box src_bb = T_BOX_GEOM(x, y, src->width, src->height);
 
 	struct t_box clip_bb;
 	t__coordinate_system_transform_box(&src->context.x, &src->context.y,
-		&clip_bb, &src->context.clip, &screen_bb);
+		&clip_bb, &src->context.clip, &dst_bb);
 
 	struct t_box term_bb;
 	t_box_intersect(&src_bb, &src_bb, &clip_bb);
-	t_box_intersect(&term_bb, &screen_bb, &src_bb);
+	t_box_intersect(&term_bb, &dst_bb, &src_bb);
 
 	t_box_translate(&src_bb, &term_bb, -x, -y);
 
