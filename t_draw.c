@@ -81,7 +81,7 @@ t__background_256(
 #define T__COORD_INF 65535
 
 static inline int32_t
-t__coordinate_system_transform(
+t__coordinate_system_transform_point(
 	struct t_coordinate_system *system,
 	int32_t container_size,
 	int32_t object_size,
@@ -102,18 +102,26 @@ t__coordinate_system_transform_box(
 	struct t_box *src,
 	struct t_box *container
 ) {
-	dst->x0 = t__coordinate_system_transform(
+	dst->x0 = t__coordinate_system_transform_point(
 		xsys, T_BOX_WIDTH(container), 0, src->x0);
-	dst->x1 = t__coordinate_system_transform(
+	dst->x1 = t__coordinate_system_transform_point(
 		xsys, T_BOX_WIDTH(container), 0, src->x1);
 
-	dst->y0 = t__coordinate_system_transform(
+	dst->y0 = t__coordinate_system_transform_point(
 		ysys, T_BOX_HEIGHT(container), 0, src->y0);
-	dst->y1 = t__coordinate_system_transform(
+	dst->y1 = t__coordinate_system_transform_point(
 		ysys, T_BOX_HEIGHT(container), 0, src->y1);
 
 	return t_box_standardize(dst, dst);
 }
+
+static inline void
+t__coordinate_system_compose(
+	struct t_box *dst_bb,
+	struct t_box *src_bb,
+	struct t_coordinate_system *xsys,
+	struct t_coordinate_system *ysys
+);
 
 static inline void
 t__frame_zero(
@@ -500,10 +508,26 @@ t_frame_rasterize(
 	t_termsize(&term_w, &term_h);
 
 	/* coordinate transform into canonical upper-left origin, positive 
-	 * x right, positive y down system */
-	x = t__coordinate_system_transform(
+	 * x right, positive y down system relative to the terminal
+	 * display (0, 0, term_w, term_h). */
+
+#if 0
+	struct t_box term_bb, src_bb;
+	t__coordinate_system_compose(
+		&term_bb, &src_bb,
+		&src->context.x,
+		&src->context.y,
+		&T_BOX_SCREEN(term_w, term_h),
+		&T_BOX_GEOM(x, y, src->width, src->height),
+		&src->context.clip,
+		NULL
+	);
+#endif
+
+#if 1
+	x = t__coordinate_system_transform_point(
 		&src->context.x, term_w, src->width, x);
-	y = t__coordinate_system_transform(
+	y = t__coordinate_system_transform_point(
 		&src->context.y, term_h, src->height, y);
 
 	struct t_box dst_bb = T_BOX_SCREEN(term_w, term_h);
@@ -518,6 +542,7 @@ t_frame_rasterize(
 	t_box_intersect(&term_bb, &dst_bb, &src_bb);
 
 	t_box_translate(&src_bb, &term_bb, -x, -y);
+#endif
 
 	int32_t const true_w = T_BOX_WIDTH(&term_bb);
 	int32_t const true_h = T_BOX_HEIGHT(&term_bb);

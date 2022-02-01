@@ -250,17 +250,47 @@ demo_frame_coordinate_system()
 		"+----+\n"
 	);
 
-	/* mathematically canonical coordinate system (bottom left of
-	 * the screen), positive x right, positive y up */
-#if 0
-	frame.context.xcoord.gravity = T_GRAVITY_LEFT;
-	frame.context.xcoord.axis    = T_AXIS_L2R;
-	frame.context.xcoord.origin  = 0;
+	t_reset();
+	t_clear();
 
-	frame.context.ycoord.gravity = T_GRAVITY_BOTTOM;
-	frame.context.ycoord.axis    = T_AXIS_B2T;
-	frame.context.ycoord.origin  = 0;
-#endif
+	/* graphically canonical coordinate system (top left of the screen) */
+	t_frame_context_set_gravity(&frame, T_GRAVITY_LEFT, T_GRAVITY_TOP);
+	t_frame_context_set_alignment(&frame, T_ALIGNMENT_LEFT, T_ALIGNMENT_TOP);
+	t_frame_context_set_direction(&frame, T_DIRECTION_L2R, T_DIRECTION_T2B);
+	t_frame_rasterize(&frame, 0, 0);
+	t_frame_rasterize(&frame, 2, 1);
+
+	/* mathematically canonical coordinate system (bottom left of
+	 * the screen). */
+	t_frame_context_set_gravity(&frame, T_GRAVITY_LEFT, T_GRAVITY_BOTTOM);
+	t_frame_context_set_alignment(&frame, T_ALIGNMENT_LEFT, T_ALIGNMENT_BOTTOM);
+	t_frame_context_set_direction(&frame, T_DIRECTION_L2R, T_DIRECTION_B2T);
+	t_frame_rasterize(&frame, 0, 0);
+	t_frame_rasterize(&frame, 2, 1);
+
+	/* center of the screen */
+	t_frame_context_set_gravity(&frame, T_GRAVITY_CENTER, T_GRAVITY_CENTER);
+	t_frame_context_set_alignment(&frame, T_ALIGNMENT_CENTER, T_ALIGNMENT_CENTER);
+	t_frame_context_set_direction(&frame, T_DIRECTION_L2R, T_DIRECTION_T2B);
+	t_frame_rasterize(&frame,  0,  0);
+	t_frame_rasterize(&frame,  4,  4);
+	t_frame_rasterize(&frame,  4, -4);
+	t_frame_rasterize(&frame, -4,  4);
+	t_frame_rasterize(&frame, -4, -4);
+	
+	/* top right of the screen */
+	t_frame_context_set_gravity(&frame, T_GRAVITY_RIGHT, T_GRAVITY_TOP);
+	t_frame_context_set_alignment(&frame, T_ALIGNMENT_RIGHT, T_ALIGNMENT_TOP);
+	t_frame_context_set_direction(&frame, T_DIRECTION_R2L, T_DIRECTION_T2B);
+	t_frame_rasterize(&frame, 0, 0);
+	t_frame_rasterize(&frame, 2, 1);
+
+	/* bottom right of the screen */
+	t_frame_context_set_gravity(&frame, T_GRAVITY_RIGHT, T_GRAVITY_BOTTOM);
+	t_frame_context_set_alignment(&frame, T_ALIGNMENT_RIGHT, T_ALIGNMENT_BOTTOM);
+	t_frame_context_set_direction(&frame, T_DIRECTION_R2L, T_DIRECTION_B2T);
+	t_frame_rasterize(&frame, 0, 0);
+	t_frame_rasterize(&frame, 2, 1);
 
 	t_cleanup();
 	return 0;

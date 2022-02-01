@@ -18,7 +18,7 @@ extern int
 demo_frame_map_one();
 
 extern int 
-demo_frame_coordinate_space();
+demo_frame_coordinate_system();
 
 extern int
 demo_frame_typeset();
