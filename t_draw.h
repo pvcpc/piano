@@ -145,18 +145,6 @@ t_box_translate(
 	return dst;
 }
 
-static inline struct t_box *
-t_box_copy(
-	struct t_box *dst,
-	struct t_box *src
-) {
-	dst->x0 = src->x0;
-	dst->y0 = src->y0;
-	dst->x1 = src->x1;
-	dst->y1 = src->y1;
-	return dst;
-}
-
 /* +--- FRAME DRAWING ---------------------------------------------+ */
 struct t_cell
 {
@@ -172,11 +160,6 @@ struct t_frame
 	struct t_cell *grid;
 	int32_t width;
 	int32_t height;
-
-	/* context (reset with `t_frame_context_reset()`) */
-	struct {
-		struct t_box clip;
-	} context;
 
 	/* internal */
 	uint32_t _true_width;
@@ -236,16 +219,6 @@ t_frame_resize(
 	struct t_frame *dst,
 	int32_t n_width,
 	int32_t n_height
-);
-
-enum t_status
-t_frame_context_reset_clip(
-	struct t_frame *dst
-);
-
-enum t_status
-t_frame_context_reset_everything(
-	struct t_frame *dst
 );
 
 enum t_status

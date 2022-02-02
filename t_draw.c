@@ -87,13 +87,6 @@ t__frame_zero(
 	memset(frame, 0, sizeof(struct t_frame));
 }
 
-static inline void
-t__frame_reset(
-	struct t_frame *frame
-) {
-	t_frame_context_reset_everything(frame);
-}
-
 static inline struct t_cell *
 t__frame_cell_at(
 	struct t_frame *frame,
@@ -111,7 +104,6 @@ t_frame_create(
 ) {
 	if (!out) return T_ENULL;
 	t__frame_zero(out);
-	t__frame_reset(out);
 
 	return t_frame_resize(out, width, height);
 }
@@ -124,7 +116,6 @@ t_frame_create_pattern(
 ) {
 	if (!out) return T_ENULL;
 	t__frame_zero(out);
-	t__frame_reset(out);
 
 	if (!out || !pattern) return T_ENULL;
 
@@ -235,31 +226,6 @@ t_frame_resize(
 }
 
 enum t_status
-t_frame_context_reset_clip(
-	struct t_frame *dst
-) {
-	if (!dst) return T_ENULL;
-
-	dst->context.clip.x0 = -T__COORD_INF;
-	dst->context.clip.y0 = -T__COORD_INF;
-	dst->context.clip.x1 =  T__COORD_INF;
-	dst->context.clip.y1 =  T__COORD_INF;
-
-	return T_OK;
-}
-
-enum t_status
-t_frame_context_reset_everything(
-	struct t_frame *dst
-) {
-	if (!dst) return T_ENULL;
-
-	t_frame_context_reset_clip(dst);
-
-	return T_OK;
-}
-
-enum t_status
 t_frame_clear(
 	struct t_frame *frame
 ) {
@@ -303,11 +269,8 @@ t_frame_map_one(
 ) {
 	if (!dst) return T_ENULL;
 
-	struct t_box bb = T_BOX_SCREEN(dst->width, dst->height);
-	t_box_intersect(&bb, &bb, &dst->context.clip);
-
-	for (int32_t y = bb.y0; y < bb.y1; ++y) {
-		for (int32_t x = bb.x0; x < bb.x1; ++x) {
+	for (int32_t y = 0; y < dst->height; ++y) {
+		for (int32_t x = 0; x < dst->width; ++x) {
 			struct t_cell *cell = t__frame_cell_at(dst, x, y);
 			if (cell->ch == from) {
 				if (flags & T_MAP_CH) cell->ch = to;
