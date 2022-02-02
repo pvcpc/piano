@@ -16,12 +16,6 @@
 
 #include "keyboard.h"
 
-#ifdef DEMO_PAUSE_BEFORE_EXIT 
-#  define DEMO__PAUSE while (t_poll() != T_POLL_CODE(0, 'q'))
-#else
-#  define DEMO__PAUSE
-#endif
-
 static float const demo__soundio_ampl = 1.0f;
 static float const demo__soundio_freq = 440.0f;
 static float const demo__soundio_rads_per_second = 2 * M_PI;
