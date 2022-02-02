@@ -512,34 +512,31 @@ t_frame_blend(
 ) {
 	if (!dst || !src) return T_ENULL;
 
-#if 1
-	/* first transform the src clip coordinates into canonical coordinates
-	 * with respect to the source frame and apply it. At the end,
-	 * src_bb will be intersected with the clip and used to sample from
-	 * the source frame. */
+	/* transform source clip into canonical source space using source's
+	 * set coordinate system and intersect with the source frame. */
 	struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
 	struct t_box src_clip_bb;
 	t__coordinate_system_transform_box(
 		&src->context.x, &src->context.y,
 		&src_clip_bb, &src->context.clip,
-		&src_bb, NULL /* &src->context.clip */
+		&src_bb, NULL /* @NOTE(max): NULL will transform points w/o alignment considerations */
 	);
 	t_box_intersect(&src_clip_bb, &src_clip_bb, &src_bb);
 
-	/* next transform the dst clip coordinates into canonical coordinates
-	 * with respect to the destination frame and apply it. Don't intersect
-	 * the clip with the destination box because weneed to transform
-	 * source frame into destination frame. */
+	/* do the same thing for the destination clip */
 	struct t_box dst_bb = T_BOX_SCREEN(dst->width, dst->height);
 	struct t_box dst_clip_bb;
 	t__coordinate_system_transform_box(
 		&dst->context.x, &dst->context.y,
 		&dst_clip_bb, &dst->context.clip,
-		&dst_bb, NULL /* &dst->context.clip */
+		&dst_bb, NULL /* @NOTE(max): NULL will transform points w/o alignment considerations */
 	);
 	t_box_intersect(&dst_clip_bb, &dst_clip_bb, &dst_bb);
 
-	/* transform source clip into destination frame coordinates. */
+	/* now apply the user supplied translation by (x, y) and transform
+	 * the source clip into destination frame space to be intersected
+	 * with the destination clip to obtain the true intersected region 
+	 * where we want to render. */
 	struct t_box dst_src_clip_bb;
 	t_box_translate(&dst_src_clip_bb, &src_clip_bb, x, y);
 	t__coordinate_system_transform_box(
@@ -547,21 +544,22 @@ t_frame_blend(
 		&dst_src_clip_bb, &dst_src_clip_bb,
 		&dst_bb, &src_bb
 	);
-
 	t_box_intersect(&dst_clip_bb, &dst_clip_bb, &dst_src_clip_bb);
+
+	/* now we take the overlapping area between the destination and
+	 * source and map it back to source space so we can sample from
+	 * the source frame. (of course translate the result by (-x,-y)
+	 * since we want to sample from source frame properly) */
 	t__coordinate_system_inverse_box(
 		&dst->context.x, &dst->context.y,
 		&src_clip_bb, &dst_clip_bb,
 		&dst_bb, &src_bb
 	);
 	t_box_translate(&src_bb, &src_clip_bb, -x, -y);
-
-	/* no we can apply the clipping to the destination */
 	t_box_intersect(&dst_bb, &dst_bb, &dst_src_clip_bb);
 
 	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
 	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
-#endif
 
 	uint32_t const dst_rgba_mask = 
 		(mask & T_BLEND_R ? 0 : T_MASK_R) |
@@ -575,10 +573,6 @@ t_frame_blend(
 		(mask & T_BLEND_B ? T_MASK_B : 0) |
 		(mask & T_BLEND_A ? T_MASK_A : 0);
 
-#if 0
-	for (int32_t bb_y = bb.y0; bb_y < bb.y1; ++bb_y) {
-		for (int32_t bb_x = bb.x0; bb_x < bb.x1; ++bb_x) {
-#endif
 	for (int32_t j = 0; j < true_h; ++j) {
 		for (int32_t i = 0; i < true_w; ++i) {
 
@@ -590,10 +584,6 @@ t_frame_blend(
 				dst_x = dst_bb.x0 + i,
 				dst_y = dst_bb.y0 + j;
 
-#if 0
-			struct t_cell *src_cell = t__frame_cell_at(src, bb_x - x, bb_y - y);
-			struct t_cell *dst_cell = t__frame_cell_at(dst, bb_x, bb_y);
-#endif
 			struct t_cell *src_cell = t__frame_cell_at(src, src_x, src_y);
 			struct t_cell *dst_cell = t__frame_cell_at(dst, dst_x, dst_y);
 			if (!src_cell->ch) {
@@ -631,6 +621,38 @@ t_frame_rasterize(
 	int32_t term_w, term_h;
 	t_termsize(&term_w, &term_h);
 
+	struct t_box dst_bb = T_BOX_SCREEN(term_w, term_h);
+	struct t_box dst_clip_bb;
+	t__coordinate_system_transform_box(
+		&src->context.x, &src->context.y,
+		&dst_clip_bb, &src->context.clip,
+		&dst_bb, NULL
+	);
+	t_box_intersect(&dst_clip_bb, &dst_clip_bb, &dst_bb);
+
+	 struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
+	 struct t_box dst_src_bb;
+	 t_box_translate(&dst_src_bb, &src_bb, x, y);
+	 t__coordinate_system_transform_box(
+		&src->context.x, &src->context.y,
+		&dst_src_bb, &dst_src_bb,
+		&dst_bb, &src_bb
+	);
+	t_box_intersect(&dst_clip_bb, &dst_clip_bb, &dst_src_bb);
+
+	t__coordinate_system_inverse_box(
+		&src->context.x, &src->context.y,
+		&dst_src_bb, &dst_src_bb,
+		&dst_bb, &src_bb
+	);
+	t_box_translate(&src_bb, &dst_src_bb, -x, -y);
+	// dst_bb = dst_clip_bb;
+	t_box_copy(&dst_bb, &dst_clip_bb);
+
+	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
+	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
+
+#if 0
 	/* coordinate transform into canonical upper-left origin, positive 
 	 * x right, positive y down system relative to the terminal
 	 * display (0, 0, term_w, term_h). */
@@ -656,6 +678,7 @@ t_frame_rasterize(
 
 	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
 	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
+#endif
 
 	/* any constants less than -1 required for init */
 	int32_t prior_x = -T__COORD_INF;

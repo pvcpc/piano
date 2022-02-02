@@ -16,6 +16,11 @@
 
 #include "keyboard.h"
 
+#ifdef DEMO_PAUSE_BEFORE_EXIT 
+#  define DEMO__PAUSE while (t_poll() != T_POLL_CODE(0, 'q'))
+#else
+#  define DEMO__PAUSE
+#endif
 
 static float const demo__soundio_ampl = 1.0f;
 static float const demo__soundio_freq = 440.0f;
@@ -253,6 +258,7 @@ demo_frame_coordinate_system()
 	t_reset();
 	t_clear();
 
+#if 0
 	/* graphically canonical coordinate system (top left of the screen) */
 	t_frame_context_set_gravity(&frame, T_GRAVITY_LEFT, T_GRAVITY_TOP);
 	t_frame_context_set_alignment(&frame, T_ALIGNMENT_LEFT, T_ALIGNMENT_TOP);
@@ -285,12 +291,16 @@ demo_frame_coordinate_system()
 	t_frame_rasterize(&frame, 0, 0);
 	t_frame_rasterize(&frame, 2, 1);
 
+#endif
 	/* bottom right of the screen */
 	t_frame_context_set_gravity(&frame, T_GRAVITY_RIGHT, T_GRAVITY_BOTTOM);
 	t_frame_context_set_alignment(&frame, T_ALIGNMENT_RIGHT, T_ALIGNMENT_BOTTOM);
 	t_frame_context_set_direction(&frame, T_DIRECTION_R2L, T_DIRECTION_B2T);
 	t_frame_rasterize(&frame, 0, 0);
 	t_frame_rasterize(&frame, 2, 1);
+
+	t_flush();
+	DEMO__PAUSE;
 
 	t_cleanup();
 	return 0;

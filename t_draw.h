@@ -145,6 +145,18 @@ t_box_translate(
 	return dst;
 }
 
+static inline struct t_box *
+t_box_copy(
+	struct t_box *dst,
+	struct t_box *src
+) {
+	dst->x0 = src->x0;
+	dst->y0 = src->y0;
+	dst->x1 = src->x1;
+	dst->y1 = src->y1;
+	return dst;
+}
+
 /* +--- FRAME DRAWING ---------------------------------------------+ */
 enum t_gravity
 {

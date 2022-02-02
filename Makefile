@@ -1,5 +1,5 @@
 CC      := /usr/bin/gcc
-CFLAGS  := -std=gnu99 -Wall -pedantic
+CFLAGS  := -DDEMO_PAUSE_BEFORE_EXIT -std=gnu99 -Wall -pedantic
 CLIBS   := -lm -lsoundio
 
 sources := $(wildcard *.c)
