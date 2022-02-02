@@ -310,14 +310,6 @@ t_frame_blend(
 ) {
 	if (!dst || !src) return T_ENULL;
 
-#if 0
-	struct t_box dst_bb = T_BOX_SCREEN(dst->width, dst->height);
-	struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
-	struct t_box dst_src_bb;
-	t_box_translate(&dst_src_bb, &src_bb, x, y);
-	t_box_intersect(&dst_bb, &dst_bb, &dst_src_bb);
-	t_box_translate(&src_bb, &dst_src_bb, -x, -y);
-#else
 	struct t_box dst_bb, src_bb;
 	t__box_overlay(
 		&dst_bb, &src_bb,
@@ -325,7 +317,6 @@ t_frame_blend(
 		&T_BOX_FRAME(src),
 		x, y
 	);
-#endif
 
 	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
 	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
@@ -390,14 +381,6 @@ t_frame_rasterize(
 	int32_t term_w, term_h;
 	t_termsize(&term_w, &term_h);
 
-#if 0
-	struct t_box dst_bb = T_BOX_SCREEN(term_w, term_h);
-	struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
-	struct t_box dst_src_bb;
-	t_box_translate(&dst_src_bb, &src_bb, x, y);
-	t_box_intersect(&dst_bb, &dst_bb, &dst_src_bb);
-	t_box_translate(&src_bb, &dst_src_bb, -x, -y);
-#else
 	struct t_box dst_bb, src_bb;
 	t__box_overlay(
 		&dst_bb, &src_bb,
@@ -405,7 +388,6 @@ t_frame_rasterize(
 		&T_BOX_FRAME(src),
 		x, y
 	);
-#endif
 
 	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
 	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
