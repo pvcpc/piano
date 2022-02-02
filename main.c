@@ -28,7 +28,7 @@ static int
 main_app();
 
 /* see demos.h for more main selections */
-#define SELECTED_MAIN demo_frame_coordinate_system
+#define SELECTED_MAIN demo_frame_blend_coordinate_system
 
 int
 main()

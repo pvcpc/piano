@@ -359,3 +359,42 @@ demo_frame_blend()
 	t_cleanup();
 	return 0;
 }
+
+int
+demo_frame_blend_coordinate_system()
+{
+	t_setup();
+
+	t_reset();
+	t_clear();
+
+	struct t_frame first;
+	t_frame_create_pattern(&first, 0,
+		"+--------+\n"
+		"|        |\n"
+		"|        |\n"
+		"|        |\n"
+		"|        |\n"
+		"+--------+\n"
+	);
+	t_frame_paint(&first, T_RGB(0, 0, 0), T_RGB(255, 255, 255));
+
+	struct t_frame second;
+	t_frame_create_pattern(&second, 0,
+		"+----+\n"
+		"|    |\n"
+		"|    |\n"
+		"+----+\n"
+	);
+	t_frame_paint(&second, T_RGB(255, 255, 255), T_RGB(192, 0, 0));
+
+	t_frame_context_set_gravity(&first, T_GRAVITY_RIGHT, T_GRAVITY_BOTTOM);
+	t_frame_context_set_alignment(&first, T_ALIGNMENT_RIGHT, T_ALIGNMENT_BOTTOM);
+	t_frame_blend(&first, &second, ~(0), 0, 0, 0, 0, 0);
+
+	t_frame_context_reset_everything(&first);
+	t_frame_rasterize(&first, 0, 0);
+
+	t_cleanup();
+	return 0;
+}

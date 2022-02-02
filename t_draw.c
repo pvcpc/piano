@@ -94,34 +94,95 @@ t__coordinate_system_transform_point(
 		(system->direction * system->origin);
 }
 
+static inline int32_t
+t__coordinate_system_inverse_point(
+	struct t_coordinate_system *system,
+	int32_t container_size,
+	int32_t object_size,
+	int32_t c
+) {
+	return (c -
+		(system->gravity   * container_size) / 2 -
+		(system->alignment * object_size) / 2 -
+		(system->direction * system->origin)
+	) / system->direction;
+}
+
 static inline struct t_box *
 t__coordinate_system_transform_box(
 	struct t_coordinate_system *xsys,
 	struct t_coordinate_system *ysys,
-	struct t_box *dst,
-	struct t_box *src,
-	struct t_box *container
+	struct t_box *out,
+	struct t_box *clip,
+	struct t_box *container,
+	struct t_box *object
 ) {
-	dst->x0 = t__coordinate_system_transform_point(
-		xsys, T_BOX_WIDTH(container), 0, src->x0);
-	dst->x1 = t__coordinate_system_transform_point(
-		xsys, T_BOX_WIDTH(container), 0, src->x1);
+#if 1
+	int32_t const
+		cont_width = container ? T_BOX_WIDTH(container) : 0,
+		cont_height = container ? T_BOX_HEIGHT(container) : 0;
+	int32_t const 
+		obj_width = object ? T_BOX_WIDTH(object) : 0,
+		obj_height = object ? T_BOX_HEIGHT(object) : 0;
+#else
+	int32_t const
+		cont_width = T_BOX_WIDTH(container),
+		cont_height = T_BOX_HEIGHT(container);
+	int32_t const 
+		obj_width = T_BOX_WIDTH(object),
+		obj_height = T_BOX_HEIGHT(object);
+#endif
 
-	dst->y0 = t__coordinate_system_transform_point(
-		ysys, T_BOX_HEIGHT(container), 0, src->y0);
-	dst->y1 = t__coordinate_system_transform_point(
-		ysys, T_BOX_HEIGHT(container), 0, src->y1);
+	out->x0 = t__coordinate_system_transform_point(
+		xsys, cont_width, obj_width, clip->x0);
+	out->x1 = t__coordinate_system_transform_point(
+		xsys, cont_width, obj_width, clip->x1);
 
-	return t_box_standardize(dst, dst);
+	out->y0 = t__coordinate_system_transform_point(
+		ysys, cont_height, obj_height, clip->y0);
+	out->y1 = t__coordinate_system_transform_point(
+		ysys, cont_height, obj_height, clip->y1);
+
+	return t_box_standardize(out, out);
 }
 
-static inline void
-t__coordinate_system_compose(
-	struct t_box *dst_bb,
-	struct t_box *src_bb,
+static inline struct t_box *
+t__coordinate_system_inverse_box(
 	struct t_coordinate_system *xsys,
-	struct t_coordinate_system *ysys
-);
+	struct t_coordinate_system *ysys,
+	struct t_box *out,
+	struct t_box *clip,
+	struct t_box *container,
+	struct t_box *object
+) {
+#if 1
+	int32_t const
+		cont_width = container ? T_BOX_WIDTH(container) : 0,
+		cont_height = container ? T_BOX_HEIGHT(container) : 0;
+	int32_t const 
+		obj_width = object ? T_BOX_WIDTH(object) : 0,
+		obj_height = object ? T_BOX_HEIGHT(object) : 0;
+#else
+	int32_t const
+		cont_width = T_BOX_WIDTH(container),
+		cont_height = T_BOX_HEIGHT(container);
+	int32_t const 
+		obj_width = T_BOX_WIDTH(object),
+		obj_height = T_BOX_HEIGHT(object);
+#endif
+
+	out->x0 = t__coordinate_system_inverse_point(
+		xsys, cont_width, obj_width, clip->x0);
+	out->x1 = t__coordinate_system_inverse_point(
+		xsys, cont_width, obj_width, clip->x1);
+
+	out->y0 = t__coordinate_system_inverse_point(
+		ysys, cont_height, obj_height, clip->y0);
+	out->y1 = t__coordinate_system_inverse_point(
+		ysys, cont_height, obj_height, clip->y1);
+
+	return t_box_standardize(out, out);
+}
 
 static inline void
 t__frame_zero(
@@ -451,9 +512,56 @@ t_frame_blend(
 ) {
 	if (!dst || !src) return T_ENULL;
 
-	struct t_box bb = T_BOX_SCREEN(dst->width, dst->height);
-	t_box_intersect(&bb, &bb, &dst->context.clip);
-	t_box_intersect(&bb, &bb, &T_BOX_GEOM(x, y, src->width, src->height));
+#if 1
+	/* first transform the src clip coordinates into canonical coordinates
+	 * with respect to the source frame and apply it. At the end,
+	 * src_bb will be intersected with the clip and used to sample from
+	 * the source frame. */
+	struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
+	struct t_box src_clip_bb;
+	t__coordinate_system_transform_box(
+		&src->context.x, &src->context.y,
+		&src_clip_bb, &src->context.clip,
+		&src_bb, NULL /* &src->context.clip */
+	);
+	t_box_intersect(&src_clip_bb, &src_clip_bb, &src_bb);
+
+	/* next transform the dst clip coordinates into canonical coordinates
+	 * with respect to the destination frame and apply it. Don't intersect
+	 * the clip with the destination box because weneed to transform
+	 * source frame into destination frame. */
+	struct t_box dst_bb = T_BOX_SCREEN(dst->width, dst->height);
+	struct t_box dst_clip_bb;
+	t__coordinate_system_transform_box(
+		&dst->context.x, &dst->context.y,
+		&dst_clip_bb, &dst->context.clip,
+		&dst_bb, NULL /* &dst->context.clip */
+	);
+	t_box_intersect(&dst_clip_bb, &dst_clip_bb, &dst_bb);
+
+	/* transform source clip into destination frame coordinates. */
+	struct t_box dst_src_clip_bb;
+	t_box_translate(&dst_src_clip_bb, &src_clip_bb, x, y);
+	t__coordinate_system_transform_box(
+		&dst->context.x, &dst->context.y,
+		&dst_src_clip_bb, &dst_src_clip_bb,
+		&dst_bb, &src_bb
+	);
+
+	t_box_intersect(&dst_clip_bb, &dst_clip_bb, &dst_src_clip_bb);
+	t__coordinate_system_inverse_box(
+		&dst->context.x, &dst->context.y,
+		&src_clip_bb, &dst_clip_bb,
+		&dst_bb, &src_bb
+	);
+	t_box_translate(&src_bb, &src_clip_bb, -x, -y);
+
+	/* no we can apply the clipping to the destination */
+	t_box_intersect(&dst_bb, &dst_bb, &dst_src_clip_bb);
+
+	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
+	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
+#endif
 
 	uint32_t const dst_rgba_mask = 
 		(mask & T_BLEND_R ? 0 : T_MASK_R) |
@@ -467,11 +575,27 @@ t_frame_blend(
 		(mask & T_BLEND_B ? T_MASK_B : 0) |
 		(mask & T_BLEND_A ? T_MASK_A : 0);
 
+#if 0
 	for (int32_t bb_y = bb.y0; bb_y < bb.y1; ++bb_y) {
 		for (int32_t bb_x = bb.x0; bb_x < bb.x1; ++bb_x) {
-			
+#endif
+	for (int32_t j = 0; j < true_h; ++j) {
+		for (int32_t i = 0; i < true_w; ++i) {
+
+			int32_t const
+				src_x = src_bb.x0 + i,
+				src_y = src_bb.y0 + j;
+
+			int32_t const
+				dst_x = dst_bb.x0 + i,
+				dst_y = dst_bb.y0 + j;
+
+#if 0
 			struct t_cell *src_cell = t__frame_cell_at(src, bb_x - x, bb_y - y);
 			struct t_cell *dst_cell = t__frame_cell_at(dst, bb_x, bb_y);
+#endif
+			struct t_cell *src_cell = t__frame_cell_at(src, src_x, src_y);
+			struct t_cell *dst_cell = t__frame_cell_at(dst, dst_x, dst_y);
 			if (!src_cell->ch) {
 				continue;
 			}
@@ -510,21 +634,6 @@ t_frame_rasterize(
 	/* coordinate transform into canonical upper-left origin, positive 
 	 * x right, positive y down system relative to the terminal
 	 * display (0, 0, term_w, term_h). */
-
-#if 0
-	struct t_box term_bb, src_bb;
-	t__coordinate_system_compose(
-		&term_bb, &src_bb,
-		&src->context.x,
-		&src->context.y,
-		&T_BOX_SCREEN(term_w, term_h),
-		&T_BOX_GEOM(x, y, src->width, src->height),
-		&src->context.clip,
-		NULL
-	);
-#endif
-
-#if 1
 	x = t__coordinate_system_transform_point(
 		&src->context.x, term_w, src->width, x);
 	y = t__coordinate_system_transform_point(
@@ -534,18 +643,19 @@ t_frame_rasterize(
 	struct t_box src_bb = T_BOX_GEOM(x, y, src->width, src->height);
 
 	struct t_box clip_bb;
-	t__coordinate_system_transform_box(&src->context.x, &src->context.y,
-		&clip_bb, &src->context.clip, &dst_bb);
+	t__coordinate_system_transform_box(
+		&src->context.x, &src->context.y,
+		&clip_bb, &src->context.clip, 
+		&dst_bb, &src->context.clip
+	);
 
-	struct t_box term_bb;
 	t_box_intersect(&src_bb, &src_bb, &clip_bb);
-	t_box_intersect(&term_bb, &dst_bb, &src_bb);
+	t_box_intersect(&dst_bb, &dst_bb, &src_bb);
 
-	t_box_translate(&src_bb, &term_bb, -x, -y);
-#endif
+	t_box_translate(&src_bb, &dst_bb, -x, -y);
 
-	int32_t const true_w = T_BOX_WIDTH(&term_bb);
-	int32_t const true_h = T_BOX_HEIGHT(&term_bb);
+	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
+	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
 
 	/* any constants less than -1 required for init */
 	int32_t prior_x = -T__COORD_INF;
@@ -568,12 +678,12 @@ t_frame_rasterize(
 			}
 
 			int32_t const
-				term_x = term_bb.x0 + i,
-				term_y = term_bb.y0 + j;
+				dst_x = dst_bb.x0 + i,
+				dst_y = dst_bb.y0 + j;
 
 			/* CURSOR POS */
-			int32_t delta_x = term_x - prior_x;
-			int32_t delta_y = term_y - prior_y;
+			int32_t delta_x = dst_x - prior_x;
+			int32_t delta_y = dst_y - prior_y;
 
 			/* @SPEED(max): take a look into this a bit more */
 			/* @NOTE(max): converting delta_y into \v chars does NOT
@@ -581,7 +691,7 @@ t_frame_rasterize(
 			 */
 			/* minimaly optimize byte usage for relocation */
 			if (delta_x && delta_y) {
-				t_cursor_pos(term_x + 1, term_y + 1);
+				t_cursor_pos(dst_x + 1, dst_y + 1);
 			}
 			else if (delta_x > 0) {
 				t_cursor_forward(delta_x);
@@ -595,8 +705,8 @@ t_frame_rasterize(
 			else if (delta_y < 0) {
 				t_cursor_up(delta_y);
 			}
-			prior_x = term_x + 1; /* to account for cursor advancing right when writing */
-			prior_y = term_y;
+			prior_x = dst_x + 1; /* to account for cursor advancing right when writing */
+			prior_y = dst_y;
 			
 			/* COLOR */
 			uint8_t const fg_alpha = T_ALPHA(cell->fg_rgba);

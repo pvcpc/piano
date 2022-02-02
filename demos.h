@@ -26,4 +26,7 @@ demo_frame_typeset();
 extern int
 demo_frame_blend();
 
+extern int
+demo_frame_blend_coordinate_system();
+
 #endif /* INCLUDE_DEMOS_H */

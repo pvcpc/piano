@@ -189,9 +189,9 @@ struct t_coordinate_system
 {
 	/* multipliers (see `enum t_gravity`, `enum t_alignment`, 
 	 * `enum t_direction`) */
-	int8_t  gravity;
-	int8_t  alignment;
-	int8_t  direction;
+	int8_t  gravity   : 3,
+			alignment : 3,
+			direction : 2;
 	int32_t origin;
 };
 
