@@ -91,7 +91,7 @@ struct t_box
 static inline struct t_box *
 t_box_standardize(
 	struct t_box *dst,
-	struct t_box *src
+	struct t_box const *src
 ) {
 	int32_t
 		x0 = T_MIN(src->x0, src->x1),
@@ -108,8 +108,8 @@ t_box_standardize(
 static inline struct t_box * 
 t_box_intersect_no_standardize(
 	struct t_box *dst,
-	struct t_box *boxa,
-	struct t_box *boxb
+	struct t_box const *boxa,
+	struct t_box const *boxb
 ) {
 	dst->x0 = T_MAX(boxa->x0, boxb->x0),
 	dst->y0 = T_MAX(boxa->y0, boxb->y0),
@@ -121,8 +121,8 @@ t_box_intersect_no_standardize(
 static inline struct t_box *
 t_box_intersect(
 	struct t_box *dst,
-	struct t_box *boxa,
-	struct t_box *boxb
+	struct t_box const *boxa,
+	struct t_box const *boxb
 ) {
 	struct t_box tmpa, tmpb;
 	return t_box_intersect_no_standardize(dst,
@@ -134,7 +134,7 @@ t_box_intersect(
 static inline struct t_box *
 t_box_translate(
 	struct t_box *dst,
-	struct t_box *src,
+	struct t_box const *src,
 	int32_t x,
 	int32_t y
 ) {
@@ -165,6 +165,9 @@ struct t_frame
 	uint32_t _true_width;
 	uint32_t _true_height;
 };
+
+#define T_BOX_FRAME(frame_ptr) \
+	T_BOX_SCREEN((frame_ptr)->width, (frame_ptr)->height)
 
 enum t_frame_flag
 {
@@ -249,8 +252,8 @@ t_frame_blend(
 	struct t_frame *src,
 	enum t_blend_mask mask,
 	enum t_blend_flag flags,
-	uint32_t alt_fg_rgb,
-	uint32_t alt_bg_rgb,
+	uint32_t alt_fg_rgba,
+	uint32_t alt_bg_rgba,
 	int32_t x,
 	int32_t y
 );

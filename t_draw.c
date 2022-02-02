@@ -81,6 +81,21 @@ t__background_256(
 #define T__COORD_INF 65535
 
 static inline void
+t__box_overlay(
+	struct t_box *out_dst,
+	struct t_box *out_src,
+	struct t_box const *dst,
+	struct t_box const *src,
+	int32_t x,
+	int32_t y
+) {
+	struct t_box tmp;
+	t_box_translate(&tmp, src, x, y);
+	t_box_intersect(out_dst, dst, &tmp);
+	t_box_translate(out_src, out_dst, -x, -y);
+}
+
+static inline void
 t__frame_zero(
 	struct t_frame *frame
 ) {
@@ -288,19 +303,29 @@ t_frame_blend(
 	struct t_frame *src,
 	enum t_blend_mask mask,
 	enum t_blend_flag flags,
-	uint32_t flat_fg_rgba,
-	uint32_t flat_bg_rgba,
+	uint32_t alt_fg_rgba,
+	uint32_t alt_bg_rgba,
 	int32_t x,
 	int32_t y
 ) {
 	if (!dst || !src) return T_ENULL;
 
+#if 0
 	struct t_box dst_bb = T_BOX_SCREEN(dst->width, dst->height);
 	struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
 	struct t_box dst_src_bb;
 	t_box_translate(&dst_src_bb, &src_bb, x, y);
 	t_box_intersect(&dst_bb, &dst_bb, &dst_src_bb);
 	t_box_translate(&src_bb, &dst_src_bb, -x, -y);
+#else
+	struct t_box dst_bb, src_bb;
+	t__box_overlay(
+		&dst_bb, &src_bb,
+		&T_BOX_FRAME(dst),
+		&T_BOX_FRAME(src),
+		x, y
+	);
+#endif
 
 	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
 	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
@@ -328,8 +353,8 @@ t_frame_blend(
 				dst_x = dst_bb.x0 + i,
 				dst_y = dst_bb.y0 + j;
 
-			struct t_cell *src_cell = t__frame_cell_at(src, src_x, src_y);
 			struct t_cell *dst_cell = t__frame_cell_at(dst, dst_x, dst_y);
+			struct t_cell *src_cell = t__frame_cell_at(src, src_x, src_y);
 			if (!src_cell->ch) {
 				continue;
 			}
@@ -338,9 +363,9 @@ t_frame_blend(
 				src_cell->ch : dst_cell->ch;
 
 			uint32_t const src_fg_rgba = flags & T_BLEND_ALTFG ?
-				flat_fg_rgba : src_cell->fg_rgba;
+				alt_fg_rgba : src_cell->fg_rgba;
 			uint32_t const src_bg_rgba = flags & T_BLEND_ALTBG ?
-				flat_bg_rgba : src_cell->bg_rgba;
+				alt_bg_rgba : src_cell->bg_rgba;
 
 			uint32_t const dst_fg_rgba = dst_cell->fg_rgba;
 			uint32_t const dst_bg_rgba = dst_cell->bg_rgba;
@@ -365,12 +390,22 @@ t_frame_rasterize(
 	int32_t term_w, term_h;
 	t_termsize(&term_w, &term_h);
 
+#if 0
 	struct t_box dst_bb = T_BOX_SCREEN(term_w, term_h);
 	struct t_box src_bb = T_BOX_SCREEN(src->width, src->height);
 	struct t_box dst_src_bb;
 	t_box_translate(&dst_src_bb, &src_bb, x, y);
 	t_box_intersect(&dst_bb, &dst_bb, &dst_src_bb);
 	t_box_translate(&src_bb, &dst_src_bb, -x, -y);
+#else
+	struct t_box dst_bb, src_bb;
+	t__box_overlay(
+		&dst_bb, &src_bb,
+		&T_BOX_SCREEN(term_w, term_h),
+		&T_BOX_FRAME(src),
+		x, y
+	);
+#endif
 
 	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
 	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
