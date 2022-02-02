@@ -158,55 +158,6 @@ t_box_copy(
 }
 
 /* +--- FRAME DRAWING ---------------------------------------------+ */
-enum t_gravity
-{
-	/* x axis mnemonic */
-	T_GRAVITY_LEFT      = 0,
-	T_GRAVITY_RIGHT     = 2,
-
-	/* y axis mnemonic */
-	T_GRAVITY_TOP       = 0,
-	T_GRAVITY_BOTTOM    = 2,
-
-	/* axis agnostic */
-	T_GRAVITY_CENTER    = 1
-};
-
-enum t_alignment
-{
-	/* x axis mnemonic */
-	T_ALIGNMENT_LEFT    =  0,
-	T_ALIGNMENT_RIGHT   = -2,
-
-	/* y axis mnemonic */
-	T_ALIGNMENT_TOP     =  0,
-	T_ALIGNMENT_BOTTOM  = -2,
-
-	/* axis agnostic mnemonic */
-	T_ALIGNMENT_CENTER  = -1
-};
-
-enum t_direction
-{
-	/* x axis mnemonic (left to right, right to left) */
-	T_DIRECTION_L2R     =  1,
-	T_DIRECTION_R2L     = -1,
-
-	/* y axis mnemonic (top to bottom, bottom to top) */
-	T_DIRECTION_T2B     =  1,
-	T_DIRECTION_B2T     = -1,
-};
-
-struct t_coordinate_system
-{
-	/* multipliers (see `enum t_gravity`, `enum t_alignment`, 
-	 * `enum t_direction`) */
-	int8_t  gravity   : 3,
-			alignment : 3,
-			direction : 2;
-	int32_t origin;
-};
-
 struct t_cell
 {
 	uint8_t ch;
@@ -225,8 +176,6 @@ struct t_frame
 	/* context (reset with `t_frame_context_reset()`) */
 	struct {
 		struct t_box clip;
-		struct t_coordinate_system x;
-		struct t_coordinate_system y;
 	} context;
 
 	/* internal */
@@ -263,24 +212,6 @@ enum t_blend_flag
 	T_BLEND_ALTBG         = 0x0002,
 };
 
-enum t_typeset_flag
-{
-	T_TYPESET_ELLIPSES    = 0x0001,
-	T_TYPESET_WRAP        = 0x0002,
-	T_TYPESET_FLUSH_LEFT  = 0x0004,
-	T_TYPESET_FLUSH_RIGHT = 0x0008,
-
-	/* override the color wherever text is placed with the 
-	 * foreground/background specified in the parameters.
-	 */
-	T_TYPESET_FGOVERRIDE  = 0x0010,
-	T_TYPESET_BGOVERRIDE  = 0x0020,
-
-	/* whether to clamp the text bounding box into the frame (if not
-	 * clamped, text may clip out of the frame.) */
-	T_TYPESET_CLAMP_BOX   = 0x0100,
-};
-
 enum t_status
 t_frame_create(
 	struct t_frame *dst,
@@ -308,40 +239,7 @@ t_frame_resize(
 );
 
 enum t_status
-t_frame_context_set_gravity(
-	struct t_frame *dst,
-	enum t_gravity xgrav,
-	enum t_gravity ygrav
-);
-
-enum t_status
-t_frame_context_set_alignment(
-	struct t_frame *dst,
-	enum t_alignment xalign,
-	enum t_alignment yalign
-);
-
-enum t_status
-t_frame_context_set_direction(
-	struct t_frame *dst,
-	enum t_direction xdir,
-	enum t_direction ydir
-);
-
-enum t_status
-t_frame_context_set_origin(
-	struct t_frame *dst,
-	int32_t x,
-	int32_t y
-);
-
-enum t_status
 t_frame_context_reset_clip(
-	struct t_frame *dst
-);
-
-enum t_status
-t_frame_context_reset_coordinate_system(
 	struct t_frame *dst
 );
 

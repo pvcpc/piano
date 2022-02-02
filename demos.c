@@ -243,70 +243,6 @@ demo_frame_map_one()
 }
 
 int
-demo_frame_coordinate_system()
-{
-	t_setup();
-
-	struct t_frame frame;
-	t_frame_create_pattern(&frame, 0,
-		"+----+\n"
-		"|    |\n"
-		"|    |\n"
-		"+----+\n"
-	);
-
-	t_reset();
-	t_clear();
-
-#if 0
-	/* graphically canonical coordinate system (top left of the screen) */
-	t_frame_context_set_gravity(&frame, T_GRAVITY_LEFT, T_GRAVITY_TOP);
-	t_frame_context_set_alignment(&frame, T_ALIGNMENT_LEFT, T_ALIGNMENT_TOP);
-	t_frame_context_set_direction(&frame, T_DIRECTION_L2R, T_DIRECTION_T2B);
-	t_frame_rasterize(&frame, 0, 0);
-	t_frame_rasterize(&frame, 2, 1);
-
-	/* mathematically canonical coordinate system (bottom left of
-	 * the screen). */
-	t_frame_context_set_gravity(&frame, T_GRAVITY_LEFT, T_GRAVITY_BOTTOM);
-	t_frame_context_set_alignment(&frame, T_ALIGNMENT_LEFT, T_ALIGNMENT_BOTTOM);
-	t_frame_context_set_direction(&frame, T_DIRECTION_L2R, T_DIRECTION_B2T);
-	t_frame_rasterize(&frame, 0, 0);
-	t_frame_rasterize(&frame, 2, 1);
-
-	/* center of the screen */
-	t_frame_context_set_gravity(&frame, T_GRAVITY_CENTER, T_GRAVITY_CENTER);
-	t_frame_context_set_alignment(&frame, T_ALIGNMENT_CENTER, T_ALIGNMENT_CENTER);
-	t_frame_context_set_direction(&frame, T_DIRECTION_L2R, T_DIRECTION_T2B);
-	t_frame_rasterize(&frame,  0,  0);
-	t_frame_rasterize(&frame,  4,  4);
-	t_frame_rasterize(&frame,  4, -4);
-	t_frame_rasterize(&frame, -4,  4);
-	t_frame_rasterize(&frame, -4, -4);
-	
-	/* top right of the screen */
-	t_frame_context_set_gravity(&frame, T_GRAVITY_RIGHT, T_GRAVITY_TOP);
-	t_frame_context_set_alignment(&frame, T_ALIGNMENT_RIGHT, T_ALIGNMENT_TOP);
-	t_frame_context_set_direction(&frame, T_DIRECTION_R2L, T_DIRECTION_T2B);
-	t_frame_rasterize(&frame, 0, 0);
-	t_frame_rasterize(&frame, 2, 1);
-
-#endif
-	/* bottom right of the screen */
-	t_frame_context_set_gravity(&frame, T_GRAVITY_RIGHT, T_GRAVITY_BOTTOM);
-	t_frame_context_set_alignment(&frame, T_ALIGNMENT_RIGHT, T_ALIGNMENT_BOTTOM);
-	t_frame_context_set_direction(&frame, T_DIRECTION_R2L, T_DIRECTION_B2T);
-	t_frame_rasterize(&frame, 0, 0);
-	t_frame_rasterize(&frame, 2, 1);
-
-	t_flush();
-	DEMO__PAUSE;
-
-	t_cleanup();
-	return 0;
-}
-
-int
 demo_frame_typeset()
 {
 	t_setup();
@@ -365,45 +301,6 @@ demo_frame_blend()
 	t_frame_rasterize(&bottom, 0, 0);
 
 	t_write_z("\n");
-
-	t_cleanup();
-	return 0;
-}
-
-int
-demo_frame_blend_coordinate_system()
-{
-	t_setup();
-
-	t_reset();
-	t_clear();
-
-	struct t_frame first;
-	t_frame_create_pattern(&first, 0,
-		"+--------+\n"
-		"|        |\n"
-		"|        |\n"
-		"|        |\n"
-		"|        |\n"
-		"+--------+\n"
-	);
-	t_frame_paint(&first, T_RGB(0, 0, 0), T_RGB(255, 255, 255));
-
-	struct t_frame second;
-	t_frame_create_pattern(&second, 0,
-		"+----+\n"
-		"|    |\n"
-		"|    |\n"
-		"+----+\n"
-	);
-	t_frame_paint(&second, T_RGB(255, 255, 255), T_RGB(192, 0, 0));
-
-	t_frame_context_set_gravity(&first, T_GRAVITY_RIGHT, T_GRAVITY_BOTTOM);
-	t_frame_context_set_alignment(&first, T_ALIGNMENT_RIGHT, T_ALIGNMENT_BOTTOM);
-	t_frame_blend(&first, &second, ~(0), 0, 0, 0, 0, 0);
-
-	t_frame_context_reset_everything(&first);
-	t_frame_rasterize(&first, 0, 0);
 
 	t_cleanup();
 	return 0;

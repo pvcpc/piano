@@ -17,16 +17,10 @@ demo_frame_pattern();
 extern int 
 demo_frame_map_one();
 
-extern int 
-demo_frame_coordinate_system();
-
 extern int
 demo_frame_typeset();
 
 extern int
 demo_frame_blend();
-
-extern int
-demo_frame_blend_coordinate_system();
 
 #endif /* INCLUDE_DEMOS_H */
