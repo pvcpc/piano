@@ -80,19 +80,39 @@ t__background_256(
 /* +--- FRAME DRAWING ---------------------------------------------+ */
 #define T__COORD_INF 65535
 
+struct t__intersection
+{
+	int32_t width;
+	int32_t height;
+
+	struct { int32_t x, y; } dst;
+	struct { int32_t x, y; } src;
+};
+
 static inline void
-t__box_overlay(
-	struct t_box *out_dst,
-	struct t_box *out_src,
-	struct t_box const *dst,
-	struct t_box const *src,
-	int32_t x,
-	int32_t y
+t__intersection_compute(
+	struct t__intersection *out,
+	int32_t dst_w,
+	int32_t dst_h,
+	int32_t src_w,
+	int32_t src_h,
+	int32_t src_x,
+	int32_t src_y
 ) {
-	struct t_box tmp;
-	t_box_translate(&tmp, src, x, y);
-	t_box_intersect(out_dst, dst, &tmp);
-	t_box_translate(out_src, out_dst, -x, -y);
+	int32_t const
+		x0 = T_MAX(0, src_x),
+		y0 = T_MAX(0, src_y),
+		x1 = T_MAX(x0, T_MIN(dst_w, src_x + src_w)),
+		y1 = T_MAX(y0, T_MIN(dst_h, src_y + src_h));
+
+	out->width  = x1 - x0;
+	out->height = y1 - y0;
+
+	out->dst.x  = x0;
+	out->dst.y  = y0;
+
+	out->src.x  = x0 - src_x;
+	out->src.y  = y0 - src_y;
 }
 
 static inline void
@@ -310,16 +330,12 @@ t_frame_blend(
 ) {
 	if (!dst || !src) return T_ENULL;
 
-	struct t_box dst_bb, src_bb;
-	t__box_overlay(
-		&dst_bb, &src_bb,
-		&T_BOX_FRAME(dst),
-		&T_BOX_FRAME(src),
+	struct t__intersection box;
+	t__intersection_compute(&box,
+		dst->width, dst->height,
+		src->width, src->height,
 		x, y
 	);
-
-	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
-	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
 
 	uint32_t const dst_rgba_mask = 
 		(mask & T_BLEND_R ? 0 : T_MASK_R) |
@@ -333,16 +349,16 @@ t_frame_blend(
 		(mask & T_BLEND_B ? T_MASK_B : 0) |
 		(mask & T_BLEND_A ? T_MASK_A : 0);
 
-	for (int32_t j = 0; j < true_h; ++j) {
-		for (int32_t i = 0; i < true_w; ++i) {
+	for (int32_t j = 0; j < box.height; ++j) {
+		for (int32_t i = 0; i < box.width; ++i) {
 
 			int32_t const
-				src_x = src_bb.x0 + i,
-				src_y = src_bb.y0 + j;
+				src_x = box.src.x + i,
+				src_y = box.src.y + j;
 
 			int32_t const
-				dst_x = dst_bb.x0 + i,
-				dst_y = dst_bb.y0 + j;
+				dst_x = box.dst.x + i,
+				dst_y = box.dst.y + j;
 
 			struct t_cell *dst_cell = t__frame_cell_at(dst, dst_x, dst_y);
 			struct t_cell *src_cell = t__frame_cell_at(src, src_x, src_y);
@@ -381,16 +397,12 @@ t_frame_rasterize(
 	int32_t term_w, term_h;
 	t_termsize(&term_w, &term_h);
 
-	struct t_box dst_bb, src_bb;
-	t__box_overlay(
-		&dst_bb, &src_bb,
-		&T_BOX_SCREEN(term_w, term_h),
-		&T_BOX_FRAME(src),
+	struct t__intersection box;
+	t__intersection_compute(&box,
+		term_w, term_h,
+		src->width, src->height,
 		x, y
 	);
-
-	int32_t const true_w = T_BOX_WIDTH(&dst_bb);
-	int32_t const true_h = T_BOX_HEIGHT(&dst_bb);
 
 	/* any constants less than -1 required for init */
 	int32_t prior_x = -T__COORD_INF;
@@ -400,21 +412,20 @@ t_frame_rasterize(
 	int32_t prior_bg = T_RGBA(0, 0, 0, 0);
 	t_reset();
 
-	for (int32_t j = 0; j < true_h; ++j) {
-		for (int32_t i = 0; i < true_w; ++i) {
+	for (int32_t j = 0; j < box.height; ++j) {
+		for (int32_t i = 0; i < box.width; ++i) {
 			int32_t const
-				src_x = src_bb.x0 + i,
-				src_y = src_bb.y0 + j;
+				src_x = box.src.x + i,
+				src_y = box.src.y + j;
 
-			// struct t_cell *cell = t__frame_cell_at(src, bb_x - x, bb_y - y);
 			struct t_cell *cell = t__frame_cell_at(src, src_x, src_y);
 			if (!cell->ch) {
 				continue;
 			}
 
 			int32_t const
-				dst_x = dst_bb.x0 + i,
-				dst_y = dst_bb.y0 + j;
+				dst_x = box.dst.x + i,
+				dst_y = box.dst.y + j;
 
 			/* CURSOR POS */
 			int32_t delta_x = dst_x - prior_x;
