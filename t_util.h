@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* compile-time constants (see README for details):
+/* @TUNABLE compile-time constants (see README for details):
  * - TC_DEBUG_METRICS (default <undefined>): 
  *   Enable debug metrics where possible.
  */

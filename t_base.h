@@ -3,7 +3,7 @@
 
 #include "t_util.h"
 
-/* compile-time constants (see README):
+/* @TUNABLE compile-time constants (see README):
  * - TC_GLOBAL_READ_BUFFER_SIZE (default 256): 
  *   Set the user-space read(3) buffer size. It does not need to be
  *   large as `t_setup()` will configure read to be nonblocking, and

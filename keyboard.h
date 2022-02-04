@@ -4,12 +4,13 @@
 #include "t_util.h"
 #include "t_draw.h"
 
-/* @TUNABLE keyboard parameters */
+/* @TUNABLE compile-time constants (see README):
+ * - KBD_POLYPHONY (default 32):
+ *   Set the maximum number of tones a keyboard can activate.
+ */
 #ifndef KBD_POLYPHONY
 #  define KBD_POLYPHONY 32
 #endif
-
-/* end tunable parameters */
 
 #define KBD_OCTAVE_WIDTH 15
 #define KBD_OCTAVE_HEIGHT 7
@@ -76,7 +77,6 @@ note_string(
 		return "undefined_note";
 	}
 }
-
 
 static inline void
 keyboard_lane_decompose_with_note(

@@ -4,7 +4,7 @@
 #include "t_util.h"
 #include "t_sequence.h"
 
-/* compile-time constants (see README):
+/* @TUNABLE compile-time constants (see README):
  * - TC_CELL_BLOCK_WIDTH (default 16):
  *   Set the chunk size by which `t_frame` width will actually be
  *   allocated to minimize malloc(3)/free(3) calls when resizing.
