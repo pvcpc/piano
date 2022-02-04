@@ -4,35 +4,41 @@
 #include "t_util.h"
 #include "t_draw.h"
 
-/* tunable compile-time parameters */
-#ifndef KEYBOARD_POLYPHONY
-#  define KEYBOARD_POLYPHONY 32
+/* @TUNABLE keyboard parameters */
+#ifndef KBD_POLYPHONY
+#  define KBD_POLYPHONY 32
 #endif
-/* end of tunable compile-time parameters */
 
-#define NOTE_COUNT 12
+/* end tunable parameters */
+
+#define KBD_OCTAVE_WIDTH 15
+#define KBD_OCTAVE_HEIGHT 7
+#define KBD_OCTAVE_LANES (KBD_OCTAVE_WIDTH - 1)
+
+#define KBD_NOTES 12
 
 enum note 
 {
-	NOTE_C  = 0,
-	NOTE_Cs = 1,
-	NOTE_Db = 1,
-	NOTE_D  = 2,
-	NOTE_Ds = 3,
-	NOTE_Eb = 3,
-	NOTE_E  = 4,
-	NOTE_Es = 5,
-	NOTE_Fb = 4,
-	NOTE_F  = 5,
-	NOTE_Fs = 6,
-	NOTE_Gb = 6,
-	NOTE_G  = 7,
-	NOTE_Gs = 8,
-	NOTE_Ab = 8,
-	NOTE_A  = 9,
-	NOTE_As = 10,
-	NOTE_Bb = 10,
-	NOTE_B  = 11,
+	NOTE_INVALID = -1,
+	NOTE_C       = 0,
+	NOTE_Cs      = 1,
+	NOTE_Db      = 1,
+	NOTE_D       = 2,
+	NOTE_Ds      = 3,
+	NOTE_Eb      = 3,
+	NOTE_E       = 4,
+	NOTE_Es      = 5,
+	NOTE_Fb      = 4,
+	NOTE_F       = 5,
+	NOTE_Fs      = 6,
+	NOTE_Gb      = 6,
+	NOTE_G       = 7,
+	NOTE_Gs      = 8,
+	NOTE_Ab      = 8,
+	NOTE_A       = 9,
+	NOTE_As      = 10,
+	NOTE_Bb      = 10,
+	NOTE_B       = 11,
 };
 
 static inline char const *
@@ -40,6 +46,8 @@ note_string(
 	enum note note
 ) {
 	switch (note) {
+	case NOTE_INVALID:
+		return "INVALID";
 	case NOTE_C:
 		return "C";
 	case NOTE_Cs:
@@ -69,46 +77,117 @@ note_string(
 	}
 }
 
-/* midi spec: C(-1) = 0, G(9) = 127 */
-#define MIDI_INDEX_MAX 127
-#define MIDI_INDEX_MASK 0x7f
 
-#define MIDI_INDEX(note, octave) (((octave) + 1) * NOTE_COUNT + (note))
-#define INDEX_NOTE(index) (((index) & MIDI_INDEX_MASK) % NOTE_COUNT)
-#define INDEX_OCTAVE(index) (((index) & MIDI_INDEX_MASK) / NOTE_COUNT - 1)
-#define INDEX_OCTAVE_ZB(index) (((index) & MIDI_INDEX_MASK) / NOTE_COUNT)
+static inline void
+keyboard_lane_decompose_with_note(
+	int32_t *out_octave,
+	int32_t *out_offset,
+	enum note *out_note,
+	int32_t lane
+) {
+	static enum note const l_offset_note_table[KBD_OCTAVE_LANES] = {
+		NOTE_INVALID,
+		NOTE_C,
+		NOTE_Cs,
+		NOTE_D,
+		NOTE_Ds,
+		NOTE_E,
+		NOTE_INVALID,
+		NOTE_F,
+		NOTE_Fs,
+		NOTE_G,
+		NOTE_Gs,
+		NOTE_A,
+		NOTE_As,
+		NOTE_B,
+	};
 
-struct keyboard_tone
+	int32_t oct, off;
+	t_mdiv32(&oct, &off, lane, KBD_OCTAVE_LANES);
+
+	*out_octave = oct-1;
+	*out_offset = off;
+	*out_note = l_offset_note_table[*out_offset];
+}
+
+static inline void
+keyboard_lane_decompose(
+	int32_t *out_octave,
+	int32_t *out_offset,
+	int32_t lane
+) {
+	int32_t oct, off;
+	t_mdiv32(&oct, &off, lane, KBD_OCTAVE_LANES);
+
+	*out_octave = oct-1;
+	*out_offset = off;
+}
+
+static inline int32_t
+keyboard_lane_compose_with_note(
+	int32_t octave,
+	enum note note
+) {
+	static int32_t const l_note_offset_table[KBD_NOTES] = {
+		1, 2, 3, 4, 5,
+		7, 8, 9, 10, 11, 12,
+	};
+	return KBD_OCTAVE_LANES * (octave + 1) + l_note_offset_table[note % KBD_NOTES];
+}
+
+static inline int32_t
+keyboard_lane_compose(
+	int32_t octave,
+	int32_t offset
+) {
+	return KBD_OCTAVE_LANES * (octave + 1) + (offset % KBD_OCTAVE_LANES);
+}
+
+static inline void
+keyboard_index_decompose(
+	int32_t *out_octave,
+	enum note *out_note,
+	int32_t index
+) {
+	int32_t oct, note;
+	t_mdiv32(&oct, &note, index, KBD_NOTES);
+
+	*out_octave = oct-1;
+	*out_note = note;
+}
+
+static inline int32_t
+keyboard_index_compose(
+	int32_t octave,
+	enum note note
+) {
+	return KBD_NOTES * (octave + 1) + (note % KBD_NOTES);
+}
+
+struct tone
 {
 	double               _tm_start;
 	double               _tm_sustain; /* < 0 indicates infinite sustain */
-	uint8_t              _mi;
+	int32_t              _index;
 };
 
 struct keyboard
 {
-	uint8_t              mi_hi; /* highest visible index on screen */
-	uint8_t              mi_lo; /* lowest visible index on screen */
-
 	struct {
 		uint32_t         frame_fg;
 		uint32_t         frame_bg;
 
 		uint32_t         idle_white;
 		uint32_t         idle_black;
+
 		uint32_t         active_white;
 		uint32_t         active_black;
 	} color;
 
 	struct t_frame       _frame_scratch;
-	struct keyboard_tone _tones_active [KEYBOARD_POLYPHONY];
-	uint32_t             _tone_pointer;
+	struct tone          _tones_active [KBD_POLYPHONY];
+	int32_t              _tone_pointer;
 };
-
-/* use in keyboard_tone_activate when no starting time point is available. */
-#define KBD_START_INF -1
-/* use in keyboard_tone_activate when sustain should be infinite. */
-#define KBD_SUSTAIN_INF -1
 
 enum t_status
 keyboard_support_setup();
@@ -131,13 +210,13 @@ keyboard_tone_activate(
 	struct keyboard *kbd,
 	double tm_start,
 	double tm_sustain,
-	uint8_t mi
+	int32_t index
 );
 
 enum t_status
 keyboard_tone_deactivate(
 	struct keyboard *kbd,
-	uint8_t mi
+	int32_t index
 );
 
 enum t_status
@@ -150,8 +229,10 @@ enum t_status
 keyboard_draw(
 	struct t_frame *dst,
 	struct keyboard *kbd,
+	int32_t lane,
 	int32_t x,
-	int32_t y
+	int32_t y,
+	int32_t width
 );
 
 #endif /* INCLUDE_KEYBOARD_H */

@@ -73,4 +73,24 @@ t_status_string(
 	}
 }
 
+/**
+ * Mathematically consistent implementation of division/modulo in
+ * that the remainder can never be negative. Especially when `d` is
+ * a compile-time constant, gcc -O2 produces god-like assembly without
+ * div or branching (ty GNU).
+ */
+static inline void
+t_mdiv32(
+	int32_t *out_q,
+	int32_t *out_r,
+	int32_t n,
+	int32_t d
+) {
+	int32_t q = n / d;
+	int32_t i = d < 0 ? 1 : -1;
+	q += d*q > n ? i : 0;
+	*out_q = q;
+	*out_r = n - d*q;
+}
+
 #endif /* INCLUDE_T_UTIL_H */

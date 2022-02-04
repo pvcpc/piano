@@ -1,4 +1,3 @@
-.experiment
-.scratch*
+.scratch
 perf.*
 *.out

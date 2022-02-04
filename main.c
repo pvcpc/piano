@@ -42,16 +42,28 @@ struct appctx
 	struct keyboard keyboard;
 
 	/* */
-	bool should_run;
-	double tm_now;
-	double tm_last;
-	double tm_last_graphics;
-	double tm_delta_graphics;
+	bool            should_run;
+	double          tm_now;
+	double          tm_last;
+	double          tm_last_graphics;
+	double          tm_delta_graphics;
 
 	/* user configurable */
-	int32_t user_octave;
-	double tm_staccato_sustain;
-	double tm_required_delta_graphics;
+	int32_t         user_octave;
+	double          tm_staccato_sustain;
+	double          tm_required_delta_graphics;
+
+	struct {
+		int32_t     tick_scale;
+
+		/* describes the viewport coordinates on a midi roll. */
+		int32_t     visual_lane;
+		int32_t     visual_atom;
+
+		/* describes the location of the user's cursor on the midi roll. */
+		int32_t     cursor_index;
+		int32_t     cursor_atom;
+	} ed;
 };
 
 static inline void
@@ -63,7 +75,7 @@ app_do_human_staccato(
 		&ac->keyboard,
 		ac->tm_now,
 		ac->tm_staccato_sustain,
-		MIDI_INDEX(note, ac->user_octave)
+		keyboard_index_compose(ac->user_octave, note)
 	);
 }
 
@@ -96,8 +108,19 @@ app_rasterize(
 	t_frame_resize(&ac->frame_primary, term_w, term_h);
 	t_frame_clear(&ac->frame_primary);
 
+	int32_t const 
+		frame_w = ac->frame_primary.width,
+		frame_h = ac->frame_primary.height;
+
 	keyboard_tones_deactivate_expired(&ac->keyboard, ac->tm_now);
-	keyboard_draw(&ac->frame_primary, &ac->keyboard, 0, 0);
+	keyboard_draw(
+		&ac->frame_primary, 
+		&ac->keyboard, 
+		ac->ed.visual_lane,
+		0, 
+		frame_h - KBD_OCTAVE_HEIGHT - 1,
+		frame_w
+	);
 
 	/* rasterize */
 	t_frame_rasterize(&ac->frame_primary, 0, 0);
@@ -140,14 +163,6 @@ main_app()
 		goto e_init_keyboard;
 	}
 
-	ac.keyboard.mi_lo = MIDI_INDEX(NOTE_Cs, 3);
-	ac.keyboard.mi_hi = MIDI_INDEX(NOTE_B,  5);
-
-	ac.keyboard.color.frame_fg = T_RGB(96, 96, 96);
-	ac.keyboard.color.idle_white = T_RGB(96, 96, 96);
-	ac.keyboard.color.active_white = T_RGB(128, 128, 128);
-	ac.keyboard.color.active_black = T_RGB(96, 96, 96);
-
 	stat = t_frame_create(&ac.frame_primary, 0, 0);
 	if (stat < 0) {
 		fprintf(stderr, "Failed to create primary framebuffer: %s\n",
@@ -155,6 +170,19 @@ main_app()
 		);
 		goto e_init_frame;
 	}
+
+	/* cosmetic initialization */
+	int32_t term_w, term_h;
+	t_termsize(&term_w, &term_h);
+
+	ac.keyboard.color.frame_fg = T_RGB(96, 96, 96);
+	ac.keyboard.color.frame_bg = T_WASHED;
+	ac.keyboard.color.idle_white = T_RGB(96, 96, 96);
+	ac.keyboard.color.idle_black = T_WASHED;
+	ac.keyboard.color.active_white = T_RGB(128, 128, 128);
+	ac.keyboard.color.active_black = T_RGB(96, 96, 96);
+
+	ac.ed.visual_lane = keyboard_lane_compose_with_note(4, NOTE_C) - term_w / 2;
 
 	/* setup, ui variables, and ui loop */
 	t_setup();
