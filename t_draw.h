@@ -12,6 +12,9 @@
  * - TC_CELL_BLOCK_HEIGHT (default 16):
  *   Set the chunk size by which `t_frame` height will actually be
  *   allocated to minimize malloc(3)/free(3) calls when resizing.
+ *
+ * - TC_GRID_ALIGN (default 16):
+ * - TC_GRID_BLOCK(default 16):
  */
 #ifndef TC_CELL_BLOCK_WIDTH
 #  define TC_CELL_BLOCK_WIDTH 16
@@ -19,6 +22,14 @@
 
 #ifndef TC_CELL_BLOCK_HEIGHT
 #  define TC_CELL_BLOCK_HEIGHT 16
+#endif
+
+#ifndef TC_GRID_ALIGN
+#  define TC_GRID_ALIGN 16
+#endif
+
+#ifndef TC_GRID_BLOCK
+#  define TC_GRID_BLOCK 16
 #endif
 
 /* +--- COLOR UTILITIES -------------------------------------------+ */
@@ -70,11 +81,18 @@ t_rgb_compress_256(
 /* +--- FRAME DRAWING ---------------------------------------------+ */
 struct t_cell
 {
+#if 0
 	uint8_t ch;
 
 	/* see t_sequence.h for how color is packed */
-	uint32_t fg_rgba; 
+	uint32_t fg_rgba;
 	uint32_t bg_rgba;
+#else
+	/* see t_sequence.h for how color is packed */
+	uint32_t foreground; 
+	uint32_t background;
+	uint8_t  letter;
+#endif
 };
 
 struct t_frame
@@ -82,14 +100,12 @@ struct t_frame
 	struct t_cell *grid;
 	int32_t width;
 	int32_t height;
-
+#if 0
 	/* internal */
 	uint32_t _true_width;
 	uint32_t _true_height;
+#endif
 };
-
-#define T_BOX_FRAME(frame_ptr) \
-	T_BOX_SCREEN((frame_ptr)->width, (frame_ptr)->height)
 
 enum t_frame_flag
 {

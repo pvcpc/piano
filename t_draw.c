@@ -128,7 +128,7 @@ t__frame_cell_at(
 	uint32_t x,
 	uint32_t y
 ) {
-	return &frame->grid[(y * frame->_true_width) + x];
+	return &frame->grid[(y * frame->width) + x];
 }
 
 enum t_status
@@ -207,7 +207,7 @@ t_frame_create_pattern(
 			break;
 		default:
 			if (*iter != ' ' || !(flags & T_FRAME_SPACEHOLDER)) {
-				t__frame_cell_at(out, x, y)->ch = *iter;
+				t__frame_cell_at(out, x, y)->letter = *iter;
 			}
 			++x;
 			break;
@@ -234,6 +234,7 @@ t_frame_resize(
 	int32_t n_width,
 	int32_t n_height
 ) {
+#if 0
 	if (!dst) return T_ENULL;
 	if (n_width < 0 || n_height < 0) return T_EPARAM;
 	if (!n_width || !n_height) return T_OK;
@@ -258,6 +259,34 @@ t_frame_resize(
 		dst->_true_height = n_true_height;
 	}
 	return T_OK;
+#else
+	if (!dst) return T_ENULL;
+	if (n_width < 0 || n_height < 0) return T_EPARAM;
+
+	uint32_t const old_size = T_ALIGN_UP(
+		sizeof(struct t_cell) * dst->width * dst->height, TC_GRID_BLOCK
+	);
+	uint32_t const new_size = T_ALIGN_UP(
+		sizeof(struct t_cell) * n_width * n_height, TC_GRID_BLOCK
+	);
+
+	if (new_size <= old_size) {
+		dst->width = n_width;
+		dst->height = n_height;
+		return T_OK;
+	}
+
+	struct t_cell *new_grid;
+	if (posix_memalign((void *) &new_grid, TC_GRID_ALIGN, new_size)) {
+		return T_EMALLOC;
+	}
+
+	dst->grid = new_grid;
+	dst->width = n_width;
+	dst->height = n_height;
+
+	return T_OK;
+#endif
 }
 
 enum t_status
@@ -267,9 +296,9 @@ t_frame_clear(
 	if (!frame) return T_ENULL;
 
 	memset(frame->grid, 0,
-		(sizeof(struct t_cell) * 
-		 frame->_true_width    * 
-		 frame->_true_height)
+		sizeof(struct t_cell) * 
+		frame->width *
+		frame->height
 	);
 
 	return T_OK;
@@ -286,8 +315,8 @@ t_frame_paint(
 	for (uint32_t y = 0; y < dst->height; ++y) {
 		for (uint32_t x = 0; x < dst->width; ++x) {
 			struct t_cell *cell = t__frame_cell_at(dst, x, y);
-			cell->fg_rgba = fg_rgba;
-			cell->bg_rgba = bg_rgba;
+			cell->foreground = fg_rgba;
+			cell->background = bg_rgba;
 		}
 	}
 	return T_OK;
@@ -307,10 +336,10 @@ t_frame_map_one(
 	for (int32_t y = 0; y < dst->height; ++y) {
 		for (int32_t x = 0; x < dst->width; ++x) {
 			struct t_cell *cell = t__frame_cell_at(dst, x, y);
-			if (cell->ch == from) {
-				if (flags & T_MAP_CH) cell->ch = to;
-				if (flags & T_MAP_ALTFG) cell->fg_rgba = alt_fg_rgba;
-				if (flags & T_MAP_ALTBG) cell->bg_rgba = alt_bg_rgba;
+			if (cell->letter == from) {
+				if (flags & T_MAP_CH) cell->letter = to;
+				if (flags & T_MAP_ALTFG) cell->foreground = alt_fg_rgba;
+				if (flags & T_MAP_ALTBG) cell->background = alt_bg_rgba;
 			}
 		}
 	}
@@ -362,25 +391,25 @@ t_frame_blend(
 
 			struct t_cell *dst_cell = t__frame_cell_at(dst, dst_x, dst_y);
 			struct t_cell *src_cell = t__frame_cell_at(src, src_x, src_y);
-			if (!src_cell->ch) {
+			if (!src_cell->letter) {
 				continue;
 			}
 			
-			dst_cell->ch = (mask & T_BLEND_CH) ?
-				src_cell->ch : dst_cell->ch;
+			dst_cell->letter = (mask & T_BLEND_CH) ?
+				src_cell->letter : dst_cell->letter;
 
 			uint32_t const src_fg_rgba = flags & T_BLEND_ALTFG ?
-				alt_fg_rgba : src_cell->fg_rgba;
+				alt_fg_rgba : src_cell->foreground;
 			uint32_t const src_bg_rgba = flags & T_BLEND_ALTBG ?
-				alt_bg_rgba : src_cell->bg_rgba;
+				alt_bg_rgba : src_cell->background;
 
-			uint32_t const dst_fg_rgba = dst_cell->fg_rgba;
-			uint32_t const dst_bg_rgba = dst_cell->bg_rgba;
+			uint32_t const dst_fg_rgba = dst_cell->foreground;
+			uint32_t const dst_bg_rgba = dst_cell->background;
 
-			dst_cell->fg_rgba = (src_fg_rgba & src_rgba_mask) |
-			                    (dst_fg_rgba & dst_rgba_mask);
-			dst_cell->bg_rgba = (src_bg_rgba & src_rgba_mask) |
-			                    (dst_bg_rgba & dst_rgba_mask);
+			dst_cell->foreground = (src_fg_rgba & src_rgba_mask) |
+			                       (dst_fg_rgba & dst_rgba_mask);
+			dst_cell->background = (src_bg_rgba & src_rgba_mask) |
+			                       (dst_bg_rgba & dst_rgba_mask);
 		}
 	}
 	return T_OK;
@@ -408,8 +437,8 @@ t_frame_rasterize(
 	int32_t prior_x = -T__COORD_INF;
 	int32_t prior_y = -T__COORD_INF;
 
-	int32_t prior_fg = T_RGBA(0, 0, 0, 0);
-	int32_t prior_bg = T_RGBA(0, 0, 0, 0);
+	int32_t prior_foreground = T_RGBA(0, 0, 0, 0);
+	int32_t prior_background = T_RGBA(0, 0, 0, 0);
 	t_reset();
 
 	for (int32_t j = 0; j < box.height; ++j) {
@@ -419,7 +448,7 @@ t_frame_rasterize(
 				src_y = box.src.y + j;
 
 			struct t_cell *cell = t__frame_cell_at(src, src_x, src_y);
-			if (!cell->ch) {
+			if (!cell->letter) {
 				continue;
 			}
 
@@ -455,28 +484,30 @@ t_frame_rasterize(
 			prior_y = dst_y;
 			
 			/* COLOR */
-			uint8_t const fg_alpha = T_ALPHA(cell->fg_rgba);
-			uint8_t const bg_alpha = T_ALPHA(cell->bg_rgba);
+			uint8_t const fg_alpha = T_ALPHA(cell->foreground);
+			uint8_t const bg_alpha = T_ALPHA(cell->background);
 
-			if (cell->fg_rgba != prior_fg || cell->bg_rgba != prior_bg) {
+			if (cell->foreground != prior_foreground || 
+				cell->background != prior_background) 
+			{
 				if (!fg_alpha || !bg_alpha) {
 					t_reset();
-					prior_fg = T_WASHED;
-					prior_bg = T_WASHED;
+					prior_foreground = T_WASHED;
+					prior_background = T_WASHED;
 				}
-				if (cell->fg_rgba != prior_fg) {
-					prior_fg = cell->fg_rgba;
-					t__foreground_256(cell->fg_rgba);
+				if (cell->foreground != prior_foreground) {
+					prior_foreground = cell->foreground;
+					t__foreground_256(cell->foreground);
 				}
-				if (cell->bg_rgba != prior_bg) {
-					prior_bg = cell->bg_rgba;
-					t__background_256(cell->bg_rgba);
+				if (cell->background != prior_background) {
+					prior_background = cell->background;
+					t__background_256(cell->background);
 				}
 			}
 
 			/* WRITE OUT */
 			enum t_status stat;
-			if ((stat = t_write(&cell->ch, 1)) < 0) {
+			if ((stat = t_write(&cell->letter, 1)) < 0) {
 				return stat;
 			}
 		}
