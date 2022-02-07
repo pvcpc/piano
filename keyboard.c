@@ -146,11 +146,7 @@ keyboard_support_setup()
 	enum t_status stat;
 
 	/* try allocate frames */
-	stat = t_frame_create_pattern(
-		&g_frame_octave, 
-		 T_FRAME_SPACEHOLDER, 
-		 KBD__CH_OCTAVE_FRAME
-	);
+	stat = t_frame_create_pattern(&g_frame_octave, KBD__CH_OCTAVE_FRAME);
 	if (stat < 0) {
 		fprintf(stderr, "Failed to create keyboard octave t_frame: %s\n",
 			t_status_string(stat));
@@ -160,8 +156,7 @@ keyboard_support_setup()
 	for (uint32_t i = 0; i < KBD_NOTES; ++i) {
 		stat = t_frame_create_pattern(
 			&g_frame_array_key_overlays[i], 
-			 T_FRAME_SPACEHOLDER, 
-			 KBD__CH_OVERLAY_FRAMES[i]
+			KBD__CH_OVERLAY_FRAMES[i]
 		);
 		if (stat < 0) {
 			fprintf(stderr, "Failed to create frame overlay for %s: %s\n",
@@ -170,12 +165,14 @@ keyboard_support_setup()
 		}
 	}
 
-	/* wash frames clean */
+	/* transform, wash frames clean */
 	t_frame_paint(&g_frame_octave, T_WASHED, T_WASHED);
+	t_frame_map(&g_frame_octave, T_MAP_CH, 0, 0, ' ', '\0');
 	for (uint32_t i = 0; i < KBD_NOTES; ++i) {
 		t_frame_paint(&g_frame_array_key_overlays[i], 
 			T_WASHED, T_WASHED
 		);
+		t_frame_map(&g_frame_array_key_overlays[i], T_MAP_CH, 0, 0, ' ', '\0');
 	}
 	return T_OK;
 
@@ -340,11 +337,12 @@ keyboard_draw(
 
 	while (width > 0) {
 		t_frame_clear(&kbd->_frame_scratch);
-		t_frame_blend(&kbd->_frame_scratch, &g_frame_octave,
-			~(0), ~(0),
+		t_frame_overlay(
+			&kbd->_frame_scratch, &g_frame_octave, 0, 0
+		);
+		t_frame_paint(&kbd->_frame_scratch, 
 			kbd->color.frame_fg,
-			kbd->color.frame_bg,
-			0, 0
+			kbd->color.frame_bg
 		);
 
 		for (int32_t j = 0; j < kbd->_tone_pointer; ++j) {
@@ -356,30 +354,27 @@ keyboard_draw(
 				continue;
 			}
 
-			t_frame_blend(&kbd->_frame_scratch, 
+			t_frame_overlay(
+				&kbd->_frame_scratch, 
 				&g_frame_array_key_overlays[tone_note],
-				T_BLEND_CH, 0,
-				0, 0,
 				0, 0
 			);
 		}
 
-		t_frame_map_one(&kbd->_frame_scratch,
+		t_frame_map(&kbd->_frame_scratch,
 			~(0), T_WASHED, kbd->color.idle_white, 'w', ' '
 		);
-		t_frame_map_one(&kbd->_frame_scratch,
+		t_frame_map(&kbd->_frame_scratch,
 			~(0), T_WASHED, kbd->color.idle_black, 'b', ' '
 		);
-		t_frame_map_one(&kbd->_frame_scratch,
+		t_frame_map(&kbd->_frame_scratch,
 			~(0), T_WASHED, kbd->color.active_white, 'W', ' '
 		);
-		t_frame_map_one(&kbd->_frame_scratch,
+		t_frame_map(&kbd->_frame_scratch,
 			~(0), T_WASHED, kbd->color.active_black, 'B', ' '
 		);
 
-		t_frame_blend(dst, &kbd->_frame_scratch,
-			~(0), 0, 0, 0, x, y
-		);
+		t_frame_overlay(dst, &kbd->_frame_scratch, x, y);
 
 		++octave;
 		x     += KBD_OCTAVE_LANES;

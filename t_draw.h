@@ -53,20 +53,58 @@
 #define T_MASK_B 0x00ff0000
 #define T_MASK_A 0xff000000
 
-uint8_t
+static inline uint8_t
 t_rgb_compress_cube_256(
 	uint32_t rgb
-);
+) {
+	static int const l_point_table [] = {
+		0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff,
+	};
+	int const components [3] = {
+		T_RED(rgb), T_GREEN(rgb), T_BLUE(rgb),
+	};
+	int cube [3];
 
-uint8_t
+	/* @SPEED(max): check compiler output for unrolling to make sure */
+	for (int i = 0; i < 3; ++i) {
+		int close_diff = 255;
+		for (int j = 0; j < 6; ++j) {
+			int diff = T_ABS(l_point_table[j] - components[i]);
+			if (diff < close_diff) {
+				cube[i] = j;
+				close_diff = diff;
+			}
+		}
+	}
+	return 16 +
+	       36 * cube[0] +
+	        6 * cube[1] +
+	            cube[2];
+}
+
+static inline uint8_t
 t_rgb_compress_gray_256(
 	uint32_t rgb
-);
+) {
+	int const scale = (T_RED(rgb) + T_GREEN(rgb) + T_BLUE(rgb)) / 3;
+	int const index = (scale - 0x08) / 10;
 
-uint8_t
+	/* because grayscale doesn't end with 0xffffff, we have to do this
+	 * stupid magic to wrap the 256 to a 231 which happens to be the
+	 * another code for 0xffffff */
+	return 232 + (index % 24) - (index / 24);
+}
+
+static inline uint8_t
 t_rgb_compress_256(
 	uint32_t rgb
-);
+) {
+	/* @SPEED(max): branch */
+	if (T_RED(rgb) == T_GREEN(rgb) && T_GREEN(rgb) == T_BLUE(rgb)) {
+		return t_rgb_compress_gray_256(rgb);
+	}
+	return t_rgb_compress_cube_256(rgb);
+}
 
 #define t_foreground_256_rgba(rgba) \
 	t_foreground_256(t_rgb_compress_256(rgba))
@@ -81,18 +119,10 @@ t_rgb_compress_256(
 /* +--- FRAME DRAWING ---------------------------------------------+ */
 struct t_cell
 {
-#if 0
-	uint8_t ch;
-
 	/* see t_sequence.h for how color is packed */
-	uint32_t fg_rgba;
-	uint32_t bg_rgba;
-#else
-	/* see t_sequence.h for how color is packed */
-	uint32_t foreground; 
-	uint32_t background;
-	uint8_t  letter;
-#endif
+	uint32_t rgba_fg; 
+	uint32_t rgba_bg;
+	uint8_t  ch;
 };
 
 struct t_frame
@@ -100,13 +130,9 @@ struct t_frame
 	struct t_cell *grid;
 	int32_t width;
 	int32_t height;
-#if 0
-	/* internal */
-	uint32_t _true_width;
-	uint32_t _true_height;
-#endif
 };
 
+#if 0
 enum t_frame_flag
 {
 	T_FRAME_SPACEHOLDER   = 0x01,
@@ -135,6 +161,7 @@ enum t_blend_flag
 	T_BLEND_ALTFG         = 0x0001,
 	T_BLEND_ALTBG         = 0x0002,
 };
+#endif
 
 enum t_status
 t_frame_create(
@@ -146,7 +173,6 @@ t_frame_create(
 enum t_status
 t_frame_create_pattern(
 	struct t_frame *dst,
-	enum t_frame_flag flags,
 	char const *pattern
 );
 
@@ -162,36 +188,36 @@ t_frame_resize(
 	int32_t n_height
 );
 
-enum t_status
+void
 t_frame_clear(
 	struct t_frame *dst
 );
 
-enum t_status
+void
 t_frame_paint(
 	struct t_frame *dst,
-	uint32_t fg_rgb,
-	uint32_t bg_rgb
+	uint32_t rgba_fg,
+	uint32_t rgba_bg
 );
 
-enum t_status
-t_frame_map_one(
+#define T_MAP_CH         0x01
+#define T_MAP_FOREGROUND 0x02
+#define T_MAP_BACKGROUND 0x04
+
+void
+t_frame_map(
 	struct t_frame *dst,
-	enum t_map_flag flags,
-	uint32_t alt_fg_rgba,
-	uint32_t alt_bg_rgba,
+	uint32_t mode,
+	uint32_t rgba_fg,
+	uint32_t rgba_bg,
 	char from,
 	char to
 );
 
-enum t_status
-t_frame_blend(
+void
+t_frame_overlay(
 	struct t_frame *dst,
 	struct t_frame *src,
-	enum t_blend_mask mask,
-	enum t_blend_flag flags,
-	uint32_t alt_fg_rgba,
-	uint32_t alt_bg_rgba,
 	int32_t x,
 	int32_t y
 );

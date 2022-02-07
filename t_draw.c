@@ -9,60 +9,6 @@
 
 
 /* +--- COLOR UTILITIES -------------------------------------------+ */
-uint8_t
-t_rgb_compress_cube_256(
-	uint32_t rgb
-) {
-	static int const l_point_table [] = {
-		0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff,
-	};
-	int const components [3] = {
-		T_RED(rgb), T_GREEN(rgb), T_BLUE(rgb),
-	};
-	int cube [3];
-
-	/* @SPEED(max): check compiler output for unrolling to make sure */
-	for (int i = 0; i < 3; ++i) {
-		int close_diff = 255;
-		for (int j = 0; j < 6; ++j) {
-			int diff = T_ABS(l_point_table[j] - components[i]);
-			if (diff < close_diff) {
-				cube[i] = j;
-				close_diff = diff;
-			}
-		}
-	}
-
-	return 16 +
-	       36 * cube[0] +
-	        6 * cube[1] +
-	            cube[2];
-}
-
-uint8_t
-t_rgb_compress_gray_256(
-	uint32_t rgb
-) {
-	int const scale = (T_RED(rgb) + T_GREEN(rgb) + T_BLUE(rgb)) / 3;
-	int const index = (scale - 0x08) / 10;
-
-	/* because grayscale doesn't end with 0xffffff, we have to do this
-	 * stupid magic to wrap the 256 to a 231 which happens to be the
-	 * another code for 0xffffff */
-	return 232 + (index % 24) - (index / 24);
-}
-
-uint8_t
-t_rgb_compress_256(
-	uint32_t rgb
-) {
-	/* @SPEED(max): branch */
-	if (T_RED(rgb) == T_GREEN(rgb) && T_GREEN(rgb) == T_BLUE(rgb)) {
-		return t_rgb_compress_gray_256(rgb);
-	}
-	return t_rgb_compress_cube_256(rgb);
-}
-
 static inline enum t_status
 t__foreground_256(
 	uint32_t rgba
@@ -146,12 +92,8 @@ t_frame_create(
 enum t_status
 t_frame_create_pattern(
 	struct t_frame *out,
-	enum t_frame_flag flags,
 	char const *pattern
 ) {
-	if (!out) return T_ENULL;
-	t__frame_zero(out);
-
 	if (!out || !pattern) return T_ENULL;
 
 	char const *iter = pattern;
@@ -206,9 +148,7 @@ t_frame_create_pattern(
 			++y;
 			break;
 		default:
-			if (*iter != ' ' || !(flags & T_FRAME_SPACEHOLDER)) {
-				t__frame_cell_at(out, x, y)->letter = *iter;
-			}
+			t__frame_cell_at(out, x, y)->ch = *iter;
 			++x;
 			break;
 		}
@@ -234,33 +174,6 @@ t_frame_resize(
 	int32_t n_width,
 	int32_t n_height
 ) {
-#if 0
-	if (!dst) return T_ENULL;
-	if (n_width < 0 || n_height < 0) return T_EPARAM;
-	if (!n_width || !n_height) return T_OK;
-
-	int32_t const n_true_width = T_ALIGN_UP(n_width, TC_CELL_BLOCK_WIDTH);
-	int32_t const n_true_height = T_ALIGN_UP(n_height, TC_CELL_BLOCK_HEIGHT);
-
-	uint32_t const old_true_bufsz = 
-		sizeof(struct t_cell) * dst->_true_width * dst->_true_height;
-	uint32_t const new_true_bufsz = 
-		sizeof(struct t_cell) * n_true_width * n_true_height;
-
-	if (old_true_bufsz < new_true_bufsz) {
-		dst->grid = realloc(dst->grid, new_true_bufsz);
-		if (!dst->grid) {
-			return T_EMALLOC;
-		}
-		dst->width = n_width;
-		dst->height = n_height;
-
-		dst->_true_width = n_true_width;
-		dst->_true_height = n_true_height;
-	}
-	return T_OK;
-#else
-	if (!dst) return T_ENULL;
 	if (n_width < 0 || n_height < 0) return T_EPARAM;
 
 	uint32_t const old_size = T_ALIGN_UP(
@@ -286,79 +199,62 @@ t_frame_resize(
 	dst->height = n_height;
 
 	return T_OK;
-#endif
 }
 
-enum t_status
+void
 t_frame_clear(
 	struct t_frame *frame
 ) {
-	if (!frame) return T_ENULL;
-
 	memset(frame->grid, 0,
 		sizeof(struct t_cell) * 
 		frame->width *
 		frame->height
 	);
-
-	return T_OK;
 }
 
-enum t_status
+void
 t_frame_paint(
 	struct t_frame *dst,
 	uint32_t fg_rgba,
 	uint32_t bg_rgba
 ) {
-	if (!dst) return T_ENULL;
-
 	for (uint32_t y = 0; y < dst->height; ++y) {
 		for (uint32_t x = 0; x < dst->width; ++x) {
 			struct t_cell *cell = t__frame_cell_at(dst, x, y);
-			cell->foreground = fg_rgba;
-			cell->background = bg_rgba;
+			cell->rgba_fg = fg_rgba;
+			cell->rgba_bg = bg_rgba;
 		}
 	}
-	return T_OK;
 }
 
-enum t_status
-t_frame_map_one(
+void
+t_frame_map(
 	struct t_frame *dst,
-	enum t_map_flag flags,
-	uint32_t alt_fg_rgba,
-	uint32_t alt_bg_rgba,
+	uint32_t mode,
+	uint32_t rgba_fg,
+	uint32_t rgba_bg,
 	char from,
 	char to
 ) {
-	if (!dst) return T_ENULL;
-
 	for (int32_t y = 0; y < dst->height; ++y) {
 		for (int32_t x = 0; x < dst->width; ++x) {
 			struct t_cell *cell = t__frame_cell_at(dst, x, y);
-			if (cell->letter == from) {
-				if (flags & T_MAP_CH) cell->letter = to;
-				if (flags & T_MAP_ALTFG) cell->foreground = alt_fg_rgba;
-				if (flags & T_MAP_ALTBG) cell->background = alt_bg_rgba;
+			if (cell->ch == from) {
+				if (mode & T_MAP_CH) cell->ch = to;
+				if (mode & T_MAP_FOREGROUND) cell->rgba_fg = rgba_fg;
+				if (mode & T_MAP_BACKGROUND) cell->rgba_bg = rgba_bg;
 			}
 		}
 	}
-	return T_OK;
 }
 
-enum t_status
-t_frame_blend(
+void
+t_frame_overlay(
 	struct t_frame *dst,
 	struct t_frame *src,
-	enum t_blend_mask mask,
-	enum t_blend_flag flags,
-	uint32_t alt_fg_rgba,
-	uint32_t alt_bg_rgba,
 	int32_t x,
 	int32_t y
 ) {
-	if (!dst || !src) return T_ENULL;
-
 	struct t__intersection box;
 	t__intersection_compute(&box,
 		dst->width, dst->height,
@@ -366,21 +262,8 @@ t_frame_blend(
 		x, y
 	);
 
-	uint32_t const dst_rgba_mask = 
-		(mask & T_BLEND_R ? 0 : T_MASK_R) |
-		(mask & T_BLEND_G ? 0 : T_MASK_G) |
-		(mask & T_BLEND_B ? 0 : T_MASK_B) |
-		(mask & T_BLEND_A ? 0 : T_MASK_A);
-
-	uint32_t const src_rgba_mask =
-		(mask & T_BLEND_R ? T_MASK_R : 0) |
-		(mask & T_BLEND_G ? T_MASK_G : 0) |
-		(mask & T_BLEND_B ? T_MASK_B : 0) |
-		(mask & T_BLEND_A ? T_MASK_A : 0);
-
 	for (int32_t j = 0; j < box.height; ++j) {
 		for (int32_t i = 0; i < box.width; ++i) {
-
 			int32_t const
 				src_x = box.src.x + i,
 				src_y = box.src.y + j;
@@ -391,28 +274,15 @@ t_frame_blend(
 
 			struct t_cell *dst_cell = t__frame_cell_at(dst, dst_x, dst_y);
 			struct t_cell *src_cell = t__frame_cell_at(src, src_x, src_y);
-			if (!src_cell->letter) {
+			if (!src_cell->ch) {
 				continue;
 			}
-			
-			dst_cell->letter = (mask & T_BLEND_CH) ?
-				src_cell->letter : dst_cell->letter;
 
-			uint32_t const src_fg_rgba = flags & T_BLEND_ALTFG ?
-				alt_fg_rgba : src_cell->foreground;
-			uint32_t const src_bg_rgba = flags & T_BLEND_ALTBG ?
-				alt_bg_rgba : src_cell->background;
-
-			uint32_t const dst_fg_rgba = dst_cell->foreground;
-			uint32_t const dst_bg_rgba = dst_cell->background;
-
-			dst_cell->foreground = (src_fg_rgba & src_rgba_mask) |
-			                       (dst_fg_rgba & dst_rgba_mask);
-			dst_cell->background = (src_bg_rgba & src_rgba_mask) |
-			                       (dst_bg_rgba & dst_rgba_mask);
+			dst_cell->ch      = src_cell->ch;
+			dst_cell->rgba_fg = src_cell->rgba_fg;
+			dst_cell->rgba_bg = src_cell->rgba_bg;
 		}
 	}
-	return T_OK;
 }
 
 enum t_status
@@ -437,8 +307,8 @@ t_frame_rasterize(
 	int32_t prior_x = -T__COORD_INF;
 	int32_t prior_y = -T__COORD_INF;
 
-	int32_t prior_foreground = T_RGBA(0, 0, 0, 0);
-	int32_t prior_background = T_RGBA(0, 0, 0, 0);
+	int32_t prior_rgba_fg = T_RGBA(0, 0, 0, 0);
+	int32_t prior_rgba_bg = T_RGBA(0, 0, 0, 0);
 	t_reset();
 
 	for (int32_t j = 0; j < box.height; ++j) {
@@ -448,7 +318,7 @@ t_frame_rasterize(
 				src_y = box.src.y + j;
 
 			struct t_cell *cell = t__frame_cell_at(src, src_x, src_y);
-			if (!cell->letter) {
+			if (!cell->ch) {
 				continue;
 			}
 
@@ -484,30 +354,30 @@ t_frame_rasterize(
 			prior_y = dst_y;
 			
 			/* COLOR */
-			uint8_t const fg_alpha = T_ALPHA(cell->foreground);
-			uint8_t const bg_alpha = T_ALPHA(cell->background);
+			uint8_t const fg_alpha = T_ALPHA(cell->rgba_fg);
+			uint8_t const bg_alpha = T_ALPHA(cell->rgba_bg);
 
-			if (cell->foreground != prior_foreground || 
-				cell->background != prior_background) 
+			if (cell->rgba_fg != prior_rgba_fg || 
+				cell->rgba_bg != prior_rgba_bg) 
 			{
 				if (!fg_alpha || !bg_alpha) {
 					t_reset();
-					prior_foreground = T_WASHED;
-					prior_background = T_WASHED;
+					prior_rgba_fg = T_WASHED;
+					prior_rgba_bg = T_WASHED;
 				}
-				if (cell->foreground != prior_foreground) {
-					prior_foreground = cell->foreground;
-					t__foreground_256(cell->foreground);
+				if (cell->rgba_fg != prior_rgba_fg) {
+					prior_rgba_fg = cell->rgba_fg;
+					t__foreground_256(cell->rgba_fg);
 				}
-				if (cell->background != prior_background) {
-					prior_background = cell->background;
-					t__background_256(cell->background);
+				if (cell->rgba_bg != prior_rgba_bg) {
+					prior_rgba_bg = cell->rgba_bg;
+					t__background_256(cell->rgba_bg);
 				}
 			}
 
 			/* WRITE OUT */
 			enum t_status stat;
-			if ((stat = t_write(&cell->letter, 1)) < 0) {
+			if ((stat = t_write(&cell->ch, 1)) < 0) {
 				return stat;
 			}
 		}

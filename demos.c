@@ -192,7 +192,7 @@ demo_frame_pattern()
 	t_clear();
 
 	struct t_frame frame;
-	t_frame_create_pattern(&frame, T_FRAME_SPACEHOLDER,
+	t_frame_create_pattern(&frame,
 		"+-------------+\n"
 		"|| | ||| | | ||\n"
 		"|| | ||| | | ||\n"
@@ -201,6 +201,7 @@ demo_frame_pattern()
 		"| | | | | | | |\n"
 		"+-+-+-+-+-+-+-+\n"
 	);
+	t_frame_map(&frame, T_MAP_CH, 0, 0, ' ', '\0');
 	t_frame_paint(&frame, T_WASHED, T_WASHED);
 	t_frame_rasterize(&frame, 0, 0);
 	t_frame_destroy(&frame);
@@ -210,19 +211,19 @@ demo_frame_pattern()
 }
 
 int
-demo_frame_map_one()
+demo_frame_map()
 {
 	t_setup();
 
 	struct t_frame frame;
-	t_frame_create_pattern(&frame, 0,
+	t_frame_create_pattern(&frame,
 		"+----+\n"
 		"|    |\n"
 		"|    |\n"
 		"+----+\n"
 	);
 	
-	t_frame_map_one(&frame, T_MAP_CH | T_MAP_ALTFG | T_MAP_ALTBG,
+	t_frame_map(&frame, T_MAP_CH | T_MAP_FOREGROUND | T_MAP_BACKGROUND,
 		T_RGB(0, 0, 0),
 		T_RGB(255, 255, 255),
 		' ', 'M'
@@ -237,23 +238,7 @@ demo_frame_map_one()
 }
 
 int
-demo_frame_typeset()
-{
-	t_setup();
-
-	struct t_frame frame;
-	t_frame_create(&frame, 16, 16);
-
-	t_reset();
-	t_clear();
-	t_frame_rasterize(&frame, 0, 0);
-
-	t_cleanup();
-	return 0;
-}
-
-int
-demo_frame_blend()
+demo_frame_overlay()
 {
 	t_setup();
 
@@ -261,7 +246,7 @@ demo_frame_blend()
 	t_termsize(&term_w, &term_h);
 
 	struct t_frame bottom;
-	t_frame_create_pattern(&bottom, T_FRAME_SPACEHOLDER,
+	t_frame_create_pattern(&bottom,
 		"+--+  \n"
 		"|  |  \n"
 		"|  |  \n"
@@ -269,10 +254,10 @@ demo_frame_blend()
 		"      \n"
 		"      \n"
 	);
-	t_frame_paint(&bottom, T_RGB(64, 192, 255), T_RGB(255, 192, 640));
+	t_frame_map(&bottom, T_MAP_CH, 0, 0, ' ', '\0');
 
 	struct t_frame top;
-	t_frame_create_pattern(&top, T_FRAME_SPACEHOLDER,
+	t_frame_create_pattern(&top,
 		"      \n"
 		"      \n"
 		"  +--+\n"
@@ -280,15 +265,12 @@ demo_frame_blend()
 		"  |  |\n"
 		"  +--+\n"
 	);
+	t_frame_map(&top, T_MAP_CH, 0, 0, ' ', '\0');
+
+	t_frame_paint(&bottom, T_RGB(64, 192, 255), T_RGB(255, 192, 640));
 	t_frame_paint(&top, T_RGB(64, 64, 64), T_RGB(255, 255, 255));
 
-	t_frame_blend(&bottom, &top, 
-		~(T_BLEND_CH),
-		0,
-		T_RGB(255, 255, 255), 
-		T_RGB(255, 0, 0),
-		0, 0
-	);
+	t_frame_overlay(&bottom, &top, 0, 0);
 
 	t_reset();
 	t_clear();

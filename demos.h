@@ -12,15 +12,9 @@ extern int
 demo_midi_parse();
 
 extern int
-demo_frame_pattern();
-
-extern int 
-demo_frame_map_one();
+demo_frame_map();
 
 extern int
-demo_frame_typeset();
-
-extern int
-demo_frame_blend();
+demo_frame_overlay();
 
 #endif /* INCLUDE_DEMOS_H */
