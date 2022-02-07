@@ -28,11 +28,11 @@
 enum t_status
 {
 	/* err (< 0) */
-	T_ENULL          = -65536,
+	T_EUNKNOWN       = -65536,
+	T_ENULL,
 	T_EPARAM,
 	T_EMALLOC,
 
-	T_EUNKNOWN,
 	T_EEMPTY,
 	T_ENOOPS,
 
@@ -48,6 +48,8 @@ t_status_string(
 ) {
 	switch (stat) {
 	/* error */
+	case T_EUNKNOWN:
+		return "T_EUNKNOWN";
 	case T_ENULL:
 		return "T_ENULL";
 	case T_EPARAM:
@@ -55,8 +57,6 @@ t_status_string(
 	case T_EMALLOC:
 		return "T_EMALLOC";
 	
-	case T_EUNKNOWN:
-		return "T_EUNKNOWN";
 	case T_EEMPTY:
 		return "T_EEMPTY";
 	case T_ENOOPS:
