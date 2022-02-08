@@ -14,7 +14,6 @@
 #include "t_sequence.h"
 #include "t_draw.h"
 
-#include "keyboard.h"
 
 static float const demo__soundio_ampl = 1.0f;
 static float const demo__soundio_freq = 440.0f;

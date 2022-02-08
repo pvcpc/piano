@@ -122,7 +122,7 @@ struct t_cell
 	/* see t_sequence.h for how color is packed */
 	uint32_t rgba_fg; 
 	uint32_t rgba_bg;
-	uint8_t  ch;
+	uint8_t ch;
 };
 
 struct t_frame
@@ -132,37 +132,7 @@ struct t_frame
 	int32_t height;
 };
 
-#if 0
-enum t_frame_flag
-{
-	T_FRAME_SPACEHOLDER   = 0x01,
-};
-
-enum t_map_flag
-{
-	T_MAP_CH              = 0x0001,
-	T_MAP_ALTFG           = 0x0002,
-	T_MAP_ALTBG           = 0x0004,
-};
-
-enum t_blend_mask
-{
-	/* destination/source sampling mode: if set, sample from source;
-	 * if not set, sample from destination. */
-	T_BLEND_R             = 0x0001,
-	T_BLEND_G             = 0x0002,
-	T_BLEND_B             = 0x0004,
-	T_BLEND_A             = 0x0008,
-	T_BLEND_CH            = 0x0010,
-};
-
-enum t_blend_flag
-{
-	T_BLEND_ALTFG         = 0x0001,
-	T_BLEND_ALTBG         = 0x0002,
-};
-#endif
-
+/* +--- MANAGING --------------------------------------------------+ */
 enum t_status
 t_frame_create(
 	struct t_frame *dst,
@@ -188,18 +158,19 @@ t_frame_resize(
 	int32_t n_height
 );
 
-void
-t_frame_clear(
-	struct t_frame *dst
-);
+/* +--- MANUAL ----------------------------------------------------+ */
+#define T_SCRATCH_GRID(ncells) \
+	((struct t_cell[ncells]){{0}})
+#define T_SCRATCH_FRAME(ncells, Mwidth, Mheight) \
+	((struct t_frame){ .grid = T_SCRATCH_GRID(ncells), .width = Mwidth, .height = Mheight, })
 
-void
-t_frame_paint(
+enum t_status
+t_frame_init_pattern(
 	struct t_frame *dst,
-	uint32_t rgba_fg,
-	uint32_t rgba_bg
+	char const *pattern
 );
 
+/* +--- DRAWING ---------------------------------------------------+ */
 #define T_MAP_CH         0x01
 #define T_MAP_FOREGROUND 0x02
 #define T_MAP_BACKGROUND 0x04
@@ -213,6 +184,26 @@ t_frame_map(
 	char from,
 	char to
 );
+
+void
+t_frame_clear(
+	struct t_frame *dst
+);
+
+void
+t_frame_paint(
+	struct t_frame *dst,
+	uint32_t rgba_fg,
+	uint32_t rgba_bg
+);
+
+static inline void
+t_frame_cull(
+	struct t_frame *dst,
+	char what
+) {
+	t_frame_map(dst, ~(0), 0, 0, what, '\0');
+}
 
 void
 t_frame_overlay(

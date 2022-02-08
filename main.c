@@ -9,7 +9,7 @@
 #include "t_draw.h"
 
 #include "demos.h"
-#include "keyboard.h"
+#include "roll.h"
 
 /* Minimum delta in seconds between successive framebuffer 
  * rasterization operations. When t_poll() is used in non-blocking
@@ -38,7 +38,7 @@ main()
 
 struct appctx
 {
-	struct t_frame  frame_primary;
+	struct t_frame  frame;
 	struct keyboard keyboard;
 
 	/* */
@@ -105,16 +105,16 @@ app_rasterize(
 	}
 
 	/* */
-	t_frame_resize(&ac->frame_primary, term_w, term_h);
-	t_frame_clear(&ac->frame_primary);
+	t_frame_resize(&ac->frame, term_w, term_h);
+	t_frame_clear(&ac->frame);
 
 	int32_t const 
-		frame_w = ac->frame_primary.width,
-		frame_h = ac->frame_primary.height;
+		frame_w = ac->frame.width,
+		frame_h = ac->frame.height;
 
 	keyboard_tones_deactivate_expired(&ac->keyboard, ac->tm_now);
 	keyboard_draw(
-		&ac->frame_primary, 
+		&ac->frame, 
 		&ac->keyboard, 
 		ac->ed.visual_lane,
 		0, 
@@ -123,7 +123,7 @@ app_rasterize(
 	);
 
 	/* rasterize */
-	t_frame_rasterize(&ac->frame_primary, 0, 0);
+	t_frame_rasterize(&ac->frame, 0, 0);
 
 #ifdef TC_DEBUG_METRICS
 	t_cursor_pos(1, term_h);
@@ -147,23 +147,7 @@ main_app()
 	struct appctx ac;
 
 	/* initialize */
-	stat = keyboard_support_setup();
-	if (stat < 0) {
-		fprintf(stderr, "Failed to initialize virtual keyboard support: %s\n",
-			t_status_string(stat)
-		);
-		goto e_init_keyboard_support;
-	}
-
-	stat = keyboard_create(&ac.keyboard);
-	if (stat < 0) {
-		fprintf(stderr, "Failed to create virtual keyboard: %s\n",
-			t_status_string(stat)
-		);
-		goto e_init_keyboard;
-	}
-
-	stat = t_frame_create(&ac.frame_primary, 0, 0);
+	stat = t_frame_create(&ac.frame, 0, 0);
 	if (stat < 0) {
 		fprintf(stderr, "Failed to create primary framebuffer: %s\n",
 			t_status_string(stat)
@@ -171,17 +155,20 @@ main_app()
 		goto e_init_frame;
 	}
 
+	keyboard_init(&ac.keyboard);
+
 	/* cosmetic initialization */
 	int32_t term_w, term_h;
 	t_termsize(&term_w, &term_h);
 
+#if 1
 	ac.keyboard.color.frame_fg = T_RGB(96, 96, 96);
 	ac.keyboard.color.frame_bg = T_WASHED;
 	ac.keyboard.color.idle_white = T_RGB(96, 96, 96);
 	ac.keyboard.color.idle_black = T_WASHED;
 	ac.keyboard.color.active_white = T_RGB(128, 128, 128);
 	ac.keyboard.color.active_black = T_RGB(96, 96, 96);
-
+#endif
 	ac.ed.visual_lane = keyboard_lane_compose_with_note(4, NOTE_C) - term_w / 2;
 
 	/* setup, ui variables, and ui loop */
@@ -256,10 +243,6 @@ main_app()
 	t_cleanup();
 
 e_init_frame:
-	t_frame_destroy(&ac.frame_primary);
-e_init_keyboard:
-	keyboard_destroy(&ac.keyboard);
-e_init_keyboard_support:
-	keyboard_support_cleanup();
+	t_frame_destroy(&ac.frame);
 	return stat > 0 ? 0 : 1;
 }

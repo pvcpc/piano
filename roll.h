@@ -12,6 +12,7 @@
 #  define KBD_POLYPHONY 32
 #endif
 
+/* +--- UTILITIES -------------------------------------------------+ */
 #define KBD_OCTAVE_WIDTH 15
 #define KBD_OCTAVE_HEIGHT 7
 #define KBD_OCTAVE_LANES (KBD_OCTAVE_WIDTH - 1)
@@ -164,6 +165,7 @@ keyboard_index_compose(
 	return KBD_NOTES * (octave + 1) + (note % KBD_NOTES);
 }
 
+/* +--- MIDI ROLL -------------------------------------------------+ */
 struct tone
 {
 	double               _tm_start;
@@ -184,28 +186,16 @@ struct keyboard
 		uint32_t         active_black;
 	} color;
 
-	struct t_frame       _frame_scratch;
 	struct tone          _tones_active [KBD_POLYPHONY];
 	int32_t              _tone_pointer;
 };
 
-enum t_status
-keyboard_support_setup();
-
 void
-keyboard_support_cleanup();
-
-enum t_status
-keyboard_create(
+keyboard_init(
 	struct keyboard *kbd
 );
 
 void
-keyboard_destroy(
-	struct keyboard *kbd
-);
-
-enum t_status
 keyboard_tone_activate(
 	struct keyboard *kbd,
 	double tm_start,
@@ -213,13 +203,13 @@ keyboard_tone_activate(
 	int32_t index
 );
 
-enum t_status
+void
 keyboard_tone_deactivate(
 	struct keyboard *kbd,
 	int32_t index
 );
 
-enum t_status
+void
 keyboard_tones_deactivate_expired(
 	struct keyboard *kbd,
 	double tm_point

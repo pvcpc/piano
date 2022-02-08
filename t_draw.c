@@ -77,38 +77,18 @@ t__frame_cell_at(
 	return &frame->grid[(y * frame->width) + x];
 }
 
-enum t_status
-t_frame_create(
-	struct t_frame *out,
-	int32_t width,
-	int32_t height
+static inline void
+t__pattern_dimensions(
+	char const *pattern,
+	int32_t *out_width,
+	int32_t *out_height
 ) {
-	if (!out) return T_ENULL;
-	t__frame_zero(out);
+	int32_t width = 0;
+	int32_t height = 0;
+	int32_t row_width = 0;
 
-	return t_frame_resize(out, width, height);
-}
-
-enum t_status
-t_frame_create_pattern(
-	struct t_frame *out,
-	char const *pattern
-) {
-	if (!out || !pattern) return T_ENULL;
-
-	char const *iter = pattern;
-	
-	/* @NOTE(max): since height = 0, there must be a \n to commit
-	 * whatever line is processed for a pattern. 
-	 */
-	uint32_t width = 0;
-	uint32_t height = 0;
-
-	/* incremented width of the currently scanned char row */
-	uint32_t row_width = 0;
-
-	while (*iter) {
-		switch (*iter) {
+	while (*pattern) {
+		switch (*pattern) {
 		case '\n':
 			++height;
 		case '\r':
@@ -122,23 +102,23 @@ t_frame_create_pattern(
 			break;
 		}
 		width = T_MAX(width, row_width);
-		++iter;
+		++pattern;
 	}
 
-	/* try to create the frame */
-	enum t_status create_stat;
-	if ((create_stat = t_frame_create(out, width, height)) < 0) {
-		return create_stat;
-	}
+	if (out_width) *out_width = width;
+	if (out_height) *out_height = height;
+}
 
-	/* copy the pattern into the frame */
-	iter = pattern;
+static inline void
+t__pattern_impress(
+	struct t_frame *dst,
+	char const *pattern
+) {
+	int32_t x = 0;
+	int32_t y = 0;
 
-	uint32_t x = 0;
-	uint32_t y = 0;
-
-	while (*iter) {
-		switch (*iter) {
+	while (*pattern) {
+		switch (*pattern) {
 		case '\n':
 			++y;
 		case '\r':
@@ -148,13 +128,40 @@ t_frame_create_pattern(
 			++y;
 			break;
 		default:
-			t__frame_cell_at(out, x, y)->ch = *iter;
+			t__frame_cell_at(dst, x, y)->ch = *pattern;
 			++x;
 			break;
 		}
-		++iter;
+		++pattern;
+	}
+}
+
+/* +--- FRAME MANAGING --------------------------------------------+ */
+enum t_status
+t_frame_create(
+	struct t_frame *dst,
+	int32_t width,
+	int32_t height
+) {
+	t__frame_zero(dst);
+	return t_frame_resize(dst, width, height);
+}
+
+enum t_status
+t_frame_create_pattern(
+	struct t_frame *dst,
+	char const *pattern
+) {
+	int32_t width = 0;
+	int32_t height = 0;
+	t__pattern_dimensions(pattern, &width, &height);
+
+	enum t_status create_stat;
+	if ((create_stat = t_frame_create(dst, width, height)) < 0) {
+		return create_stat;
 	}
 
+	t__pattern_impress(dst, pattern);
 	return T_OK;
 }
 
@@ -165,6 +172,7 @@ t_frame_destroy(
 	if (!frame) return;
 
 	free((void *) frame->grid);
+
 	t__frame_zero(frame);
 }
 
@@ -201,6 +209,51 @@ t_frame_resize(
 	return T_OK;
 }
 
+/* +--- MANUAL ----------------------------------------------------+ */
+enum t_status
+t_frame_init_pattern(
+	struct t_frame *dst,
+	char const *pattern
+) {
+	int32_t width;
+	int32_t height;
+	t__pattern_dimensions(pattern, &width, &height);
+
+	if ((dst->width && dst->width != width) ||
+		(dst->height && dst->height != height))
+	{
+		return T_EMISMATCH;
+	}
+
+	dst->width = width;
+	dst->height = height;
+
+	t__pattern_impress(dst, pattern);
+	return T_OK;
+}
+
+/* +--- DRAWING ---------------------------------------------------+ */
+void
+t_frame_map(
+	struct t_frame *dst,
+	uint32_t mode,
+	uint32_t rgba_fg,
+	uint32_t rgba_bg,
+	char from,
+	char to
+) {
+	for (int32_t y = 0; y < dst->height; ++y) {
+		for (int32_t x = 0; x < dst->width; ++x) {
+			struct t_cell *cell = t__frame_cell_at(dst, x, y);
+			if (cell->ch == from) {
+				if (mode & T_MAP_CH) cell->ch = to;
+				if (mode & T_MAP_FOREGROUND) cell->rgba_fg = rgba_fg;
+				if (mode & T_MAP_BACKGROUND) cell->rgba_bg = rgba_bg;
+			}
+		}
+	}
+}
+
 void
 t_frame_clear(
 	struct t_frame *frame
@@ -223,27 +276,6 @@ t_frame_paint(
 			struct t_cell *cell = t__frame_cell_at(dst, x, y);
 			cell->rgba_fg = fg_rgba;
 			cell->rgba_bg = bg_rgba;
-		}
-	}
-}
-
-void
-t_frame_map(
-	struct t_frame *dst,
-	uint32_t mode,
-	uint32_t rgba_fg,
-	uint32_t rgba_bg,
-	char from,
-	char to
-) {
-	for (int32_t y = 0; y < dst->height; ++y) {
-		for (int32_t x = 0; x < dst->width; ++x) {
-			struct t_cell *cell = t__frame_cell_at(dst, x, y);
-			if (cell->ch == from) {
-				if (mode & T_MAP_CH) cell->ch = to;
-				if (mode & T_MAP_FOREGROUND) cell->rgba_fg = rgba_fg;
-				if (mode & T_MAP_BACKGROUND) cell->rgba_bg = rgba_bg;
-			}
 		}
 	}
 }

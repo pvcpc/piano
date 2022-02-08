@@ -1,7 +1,0 @@
-#ifndef INCLUDE_MIDIROLL_H
-#define INCLUDE_MIDIROLL_H
-
-
-
-
-#endif /* INCLUDE_MIDIROLL_H */

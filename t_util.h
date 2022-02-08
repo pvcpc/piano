@@ -31,12 +31,15 @@ enum t_status
 	T_EUNKNOWN       = -65536,
 	T_ENULL,
 	T_EPARAM,
+	T_EMISMATCH,
 	T_EMALLOC,
+	T_EUNMANAGED,
 
 	T_EEMPTY,
 	T_ENOOPS,
 
 	T_EOVERFLO,
+	T_EEXHAUST,
 
 	/* info (>= 0) */
 	T_OK             =  0,
@@ -54,8 +57,12 @@ t_status_string(
 		return "T_ENULL";
 	case T_EPARAM:
 		return "T_EPARAM";
+	case T_EMISMATCH:
+		return "T_EMISMATCH";
 	case T_EMALLOC:
 		return "T_EMALLOC";
+	case T_EUNMANAGED:
+		return "T_EUNMANAGED";
 	
 	case T_EEMPTY:
 		return "T_EEMPTY";
@@ -64,6 +71,8 @@ t_status_string(
 	
 	case T_EOVERFLO:
 		return "T_EOVERFLO";
+	case T_EEXHAUST:
+		return "T_EEXHAUST";
 	
 	/* info */
 	case T_OK:
