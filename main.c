@@ -8,7 +8,6 @@
 #include "t_sequence.h"
 #include "t_draw.h"
 
-#include "demos.h"
 #include "roll.h"
 
 /* Minimum delta in seconds between successive framebuffer 
@@ -19,22 +18,10 @@
  * On my system, a milisecond is more than enough to avoid those. This
  * is terminal dependent, I imagine.
  */
-#define RASTERIZATION_DELTA_REQUIRED 1e-3
+#define RASTERIZATION_DELTA_REQUIRED 8e-3
 
 #define TERM_WIDTH_MIN 24
 #define TERM_HEIGHT_MIN 16
-
-static int
-main_app();
-
-/* see demos.h for more main selections */
-#define SELECTED_MAIN main_app
-
-int
-main()
-{
-	return SELECTED_MAIN();
-}
 
 struct appctx
 {
@@ -79,11 +66,62 @@ app_do_human_staccato(
 	);
 }
 
+static inline enum t_status
+app_initialize(
+	struct appctx *ac
+) {
+	enum t_status stat;
+	stat = t_frame_create(&ac->frame, 0, 0);
+	if (stat < 0) {
+		fprintf(stderr, "Failed to create primary framebuffer: %s\n",
+			t_status_string(stat)
+		);
+		return stat;
+	}
+
+	keyboard_init(&ac->keyboard);
+
+	/* finalize */
+	t_setup();
+
+	ac->should_run = true;
+	ac->tm_last = t_elapsed();
+	ac->tm_last_graphics = t_elapsed();
+	
+	ac->user_octave = 4;
+	ac->tm_staccato_sustain = 0.1;
+	ac->tm_required_delta_graphics = RASTERIZATION_DELTA_REQUIRED;
+
+	/* cosmetic initialization */
+	int32_t term_w, term_h;
+	t_termsize(&term_w, &term_h);
+
+	ac->keyboard.color.frame_fg = T_RGB(96, 96, 96);
+	ac->keyboard.color.frame_bg = T_WASHED;
+	ac->keyboard.color.idle_white = T_RGB(96, 96, 96);
+	ac->keyboard.color.idle_black = T_WASHED;
+	ac->keyboard.color.active_white = T_RGB(128, 128, 128);
+	ac->keyboard.color.active_black = T_RGB(96, 96, 96);
+
+	ac->ed.visual_lane = keyboard_lane_compose_with_note(4, NOTE_C) - term_w / 2;
+
+	return T_OK;
+}
+
+static inline int
+app_destroy(
+	struct appctx *ac
+) {
+	t_frame_destroy(&ac->frame);
+	t_cleanup();
+	return 0;
+}
+
 static inline void
 app_rasterize(
 	struct appctx *ac
 ) {
-	/* clear before drawing in case of error to display */
+	/* @TODO(max): double buffer */
 	t_reset();
 	t_clear();
 
@@ -140,47 +178,16 @@ app_rasterize(
 	t_flush();
 }
 
-static int
-main_app()
+int
+main()
 {
 	enum t_status stat;
 	struct appctx ac;
 
-	/* initialize */
-	stat = t_frame_create(&ac.frame, 0, 0);
+	stat = app_initialize(&ac);
 	if (stat < 0) {
-		fprintf(stderr, "Failed to create primary framebuffer: %s\n",
-			t_status_string(stat)
-		);
-		goto e_init_frame;
+		goto e_init;
 	}
-
-	keyboard_init(&ac.keyboard);
-
-	/* cosmetic initialization */
-	int32_t term_w, term_h;
-	t_termsize(&term_w, &term_h);
-
-#if 1
-	ac.keyboard.color.frame_fg = T_RGB(96, 96, 96);
-	ac.keyboard.color.frame_bg = T_WASHED;
-	ac.keyboard.color.idle_white = T_RGB(96, 96, 96);
-	ac.keyboard.color.idle_black = T_WASHED;
-	ac.keyboard.color.active_white = T_RGB(128, 128, 128);
-	ac.keyboard.color.active_black = T_RGB(96, 96, 96);
-#endif
-	ac.ed.visual_lane = keyboard_lane_compose_with_note(4, NOTE_C) - term_w / 2;
-
-	/* setup, ui variables, and ui loop */
-	t_setup();
-
-	ac.should_run = true;
-	ac.tm_last = t_elapsed();
-	ac.tm_last_graphics = t_elapsed();
-	
-	ac.user_octave = 4;
-	ac.tm_staccato_sustain = 0.1;
-	ac.tm_required_delta_graphics = RASTERIZATION_DELTA_REQUIRED;
 
 	while (ac.should_run) {
 		ac.tm_now = t_elapsed();
@@ -237,12 +244,11 @@ main_app()
 		}
 	}
 
-	/* done */
 	t_reset();
 	t_clear();
 	t_cleanup();
 
-e_init_frame:
-	t_frame_destroy(&ac.frame);
-	return stat > 0 ? 0 : 1;
+e_init:
+	app_destroy(&ac);
+	return stat < 0 ? 1 : 0;
 }

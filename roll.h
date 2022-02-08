@@ -12,7 +12,8 @@
 #  define KBD_POLYPHONY 32
 #endif
 
-/* +--- UTILITIES -------------------------------------------------+ */
+#define ROLL_OCTAVE_WIDTH 15
+
 #define KBD_OCTAVE_WIDTH 15
 #define KBD_OCTAVE_HEIGHT 7
 #define KBD_OCTAVE_LANES (KBD_OCTAVE_WIDTH - 1)
