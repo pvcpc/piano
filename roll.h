@@ -1,6 +1,8 @@
 #ifndef INCLUDE_KEYBOARD_H
 #define INCLUDE_KEYBOARD_H
 
+#include <stdbool.h>
+
 #include "t_util.h"
 #include "t_draw.h"
 
@@ -11,8 +13,6 @@
 #ifndef KBD_POLYPHONY
 #  define KBD_POLYPHONY 32
 #endif
-
-#define ROLL_OCTAVE_WIDTH 15
 
 #define KBD_OCTAVE_WIDTH 15
 #define KBD_OCTAVE_HEIGHT 7
@@ -81,7 +81,7 @@ note_string(
 }
 
 static inline void
-keyboard_lane_decompose_with_note(
+roll_lane_decompose_with_note(
 	int32_t *out_octave,
 	int32_t *out_offset,
 	enum note *out_note,
@@ -113,7 +113,7 @@ keyboard_lane_decompose_with_note(
 }
 
 static inline void
-keyboard_lane_decompose(
+roll_lane_decompose(
 	int32_t *out_octave,
 	int32_t *out_offset,
 	int32_t lane
@@ -126,7 +126,7 @@ keyboard_lane_decompose(
 }
 
 static inline int32_t
-keyboard_lane_compose_with_note(
+roll_lane_compose_with_note(
 	int32_t octave,
 	enum note note
 ) {
@@ -138,7 +138,7 @@ keyboard_lane_compose_with_note(
 }
 
 static inline int32_t
-keyboard_lane_compose(
+roll_lane_compose(
 	int32_t octave,
 	int32_t offset
 ) {
@@ -146,7 +146,7 @@ keyboard_lane_compose(
 }
 
 static inline void
-keyboard_index_decompose(
+roll_index_decompose(
 	int32_t *out_octave,
 	enum note *out_note,
 	int32_t index
@@ -159,7 +159,7 @@ keyboard_index_decompose(
 }
 
 static inline int32_t
-keyboard_index_compose(
+roll_index_compose(
 	int32_t octave,
 	enum note note
 ) {
@@ -167,63 +167,50 @@ keyboard_index_compose(
 }
 
 /* +--- MIDI ROLL -------------------------------------------------+ */
-struct tone
+struct roll 
 {
-	double               _tm_start;
-	double               _tm_sustain; /* < 0 indicates infinite sustain */
-	int32_t              _index;
-};
+	int32_t view_lane;
+	int32_t view_tick;
+	int32_t view_tickscale;
 
-struct keyboard
-{
-	struct {
-		uint32_t         frame_fg;
-		uint32_t         frame_bg;
+	int32_t cursor_index;
+	int32_t cursor_atom;
 
-		uint32_t         idle_white;
-		uint32_t         idle_black;
-
-		uint32_t         active_white;
-		uint32_t         active_black;
-	} color;
-
-	struct tone          _tones_active [KBD_POLYPHONY];
-	int32_t              _tone_pointer;
+	int32_t _indices[KBD_POLYPHONY];
+	int32_t _indices_ptr;
 };
 
 void
-keyboard_init(
-	struct keyboard *kbd
+roll_init(
+	struct roll *roll
 );
 
 void
-keyboard_tone_activate(
-	struct keyboard *kbd,
-	double tm_start,
-	double tm_sustain,
+roll_tone_activate(
+	struct roll *roll,
 	int32_t index
 );
 
 void
-keyboard_tone_deactivate(
-	struct keyboard *kbd,
+roll_tone_deactivate(
+	struct roll *roll,
 	int32_t index
 );
 
 void
-keyboard_tones_deactivate_expired(
-	struct keyboard *kbd,
-	double tm_point
+roll_tone_toggle(
+	struct roll *roll,
+	int32_t index
 );
 
 enum t_status
-keyboard_draw(
+roll_draw(
 	struct t_frame *dst,
-	struct keyboard *kbd,
-	int32_t lane,
+	struct roll *roll,
+	int32_t width,
+	int32_t height,
 	int32_t x,
-	int32_t y,
-	int32_t width
+	int32_t y
 );
 
 #endif /* INCLUDE_KEYBOARD_H */

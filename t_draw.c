@@ -68,15 +68,6 @@ t__frame_zero(
 	memset(frame, 0, sizeof(struct t_frame));
 }
 
-static inline struct t_cell *
-t__frame_cell_at(
-	struct t_frame *frame,
-	uint32_t x,
-	uint32_t y
-) {
-	return &frame->grid[(y * frame->width) + x];
-}
-
 static inline void
 t__pattern_dimensions(
 	char const *pattern,
@@ -128,7 +119,7 @@ t__pattern_impress(
 			++y;
 			break;
 		default:
-			t__frame_cell_at(dst, x, y)->ch = *pattern;
+			t_frame_cell_at(dst, x, y)->ch = *pattern;
 			++x;
 			break;
 		}
@@ -244,7 +235,7 @@ t_frame_map(
 ) {
 	for (int32_t y = 0; y < dst->height; ++y) {
 		for (int32_t x = 0; x < dst->width; ++x) {
-			struct t_cell *cell = t__frame_cell_at(dst, x, y);
+			struct t_cell *cell = t_frame_cell_at(dst, x, y);
 			if (cell->ch == from) {
 				if (mode & T_MAP_CH) cell->ch = to;
 				if (mode & T_MAP_FOREGROUND) cell->rgba_fg = rgba_fg;
@@ -273,7 +264,7 @@ t_frame_paint(
 ) {
 	for (uint32_t y = 0; y < dst->height; ++y) {
 		for (uint32_t x = 0; x < dst->width; ++x) {
-			struct t_cell *cell = t__frame_cell_at(dst, x, y);
+			struct t_cell *cell = t_frame_cell_at(dst, x, y);
 			cell->rgba_fg = fg_rgba;
 			cell->rgba_bg = bg_rgba;
 		}
@@ -304,8 +295,8 @@ t_frame_overlay(
 				dst_x = box.dst.x + i,
 				dst_y = box.dst.y + j;
 
-			struct t_cell *dst_cell = t__frame_cell_at(dst, dst_x, dst_y);
-			struct t_cell *src_cell = t__frame_cell_at(src, src_x, src_y);
+			struct t_cell *dst_cell = t_frame_cell_at(dst, dst_x, dst_y);
+			struct t_cell *src_cell = t_frame_cell_at(src, src_x, src_y);
 			if (!src_cell->ch) {
 				continue;
 			}
@@ -349,7 +340,7 @@ t_frame_rasterize(
 				src_x = box.src.x + i,
 				src_y = box.src.y + j;
 
-			struct t_cell *cell = t__frame_cell_at(src, src_x, src_y);
+			struct t_cell *cell = t_frame_cell_at(src, src_x, src_y);
 			if (!cell->ch) {
 				continue;
 			}

@@ -115,129 +115,164 @@ static char const *const g_kbd_notes [KBD_NOTES] = {
 	            "               \n",
 };
 
-static inline void
-keyboard__zero(
-	struct keyboard *kbd
-) {
-	kbd->color.frame_fg = 0;
-	kbd->color.frame_bg = 0;
-
-	kbd->color.idle_white = 0;
-	kbd->color.idle_black = 0;
-
-	kbd->color.active_white = 0;
-	kbd->color.active_black = 0;
-
-	kbd->_tone_pointer = 0;
-}
-
-static inline void
-keyboard__defaults(
-	struct keyboard *kbd
-) {
-	kbd->color.frame_fg = T_WASHED;
-	kbd->color.frame_bg = T_WASHED;
-
-	kbd->color.idle_white = T_RGB(255, 255, 255);
-	kbd->color.idle_black = T_WASHED;
-
-	kbd->color.active_white = T_RGB(255, 192, 192);
-	kbd->color.active_black = T_RGB(255, 192, 192);
-}
-
 void 
-keyboard_init(
-	struct keyboard *kbd
+roll_init(
+	struct roll *roll
 ) {
-	keyboard__zero(kbd);
-	keyboard__defaults(kbd);
+	roll->view_lane = 0;
+	roll->view_tick = 0;
+	roll->view_tickscale = 1;
+
+	roll->cursor_index = 0;
+	roll->cursor_atom = 0;
+
+	roll->_indices_ptr = 0;
 }
 
 void
-keyboard_tone_activate(
-	struct keyboard *kbd,
-	double tm_start,
-	double tm_sustain,
+roll_tone_activate(
+	struct roll *roll,
 	int32_t index
 ) {
-	/* check if note is already activated */
-	for (int32_t i = 0; i < kbd->_tone_pointer; ++i) {
-		struct tone *tone = &kbd->_tones_active[i];
-		if (tone->_index == index) {
-			return;
-		}
+	if (roll->_indices_ptr >= KBD_POLYPHONY) return;
+
+	for (uint32_t i = 0; i < roll->_indices_ptr; ++i) {
+		if (roll->_indices[i] == index) return;
 	}
-
-	/* it tone is not active, check to make sure we have room */
-	if (kbd->_tone_pointer >= KBD_POLYPHONY) return;
-
-	/* otherwise activate it */
-	struct tone *tone = 
-		&kbd->_tones_active[kbd->_tone_pointer++];
-	tone->_tm_start = tm_start;
-	tone->_tm_sustain = tm_sustain;
-	tone->_index = index;
+	roll->_indices[roll->_indices_ptr++] = index;
 }
 
 void
-keyboard_tone_deactivate(
-	struct keyboard *kbd,
+roll_tone_deactivate(
+	struct roll *roll,
 	int32_t index 
 ) {
-	for (int32_t i = 0; i < kbd->_tone_pointer; ++i) {
-		struct tone *tone = &kbd->_tones_active[i];
-		if (tone->_index != index) {
+	for (int32_t i = 0; i < roll->_indices_ptr; ++i) {
+		if (roll->_indices[i] != index) continue;
+
+		--roll->_indices_ptr;
+		if (i == roll->_indices_ptr) {
 			continue;
 		}
 
-		--kbd->_tone_pointer;
-		if (i == kbd->_tone_pointer) {
-			continue;
-		}
-
-		struct tone *end = 
-			&kbd->_tones_active[kbd->_tone_pointer];
-		tone->_tm_start   = end->_tm_start;
-		tone->_tm_sustain = end->_tm_sustain;
-		tone->_index      = end->_index;
-		--i;
+		T_SWAP(int32_t,
+			roll->_indices[i],
+			roll->_indices[roll->_indices_ptr]
+		);
 	}
 }
 
 void
-keyboard_tones_deactivate_expired(
-	struct keyboard *kbd,
-	double tm_point
+roll_tone_toggle(
+	struct roll *roll,
+	int32_t index
 ) {
-	for (int32_t i = 0; i < kbd->_tone_pointer; ++i) {
-		struct tone *tone = &kbd->_tones_active[i];
-		if (tone->_tm_start + tone->_tm_sustain > tm_point) {
-			continue;
-		}
-
-		--kbd->_tone_pointer;
-		if (i == kbd->_tone_pointer) {
-			continue;
-		}
-
-		struct tone *end = 
-			&kbd->_tones_active[kbd->_tone_pointer];
-		tone->_tm_start   = end->_tm_start;
-		tone->_tm_sustain = end->_tm_sustain;
-		tone->_index      = end->_index;
-		--i;
-	}
+	
 }
 
 enum t_status
-keyboard_draw(
+roll_draw(
 	struct t_frame *dst,
-	struct keyboard *kbd,
-	int32_t lane,
-	int32_t x,
-	int32_t y,
-	int32_t width
+	struct roll *roll,
+	int32_t const width,
+	int32_t const height,
+	int32_t const x,
+	int32_t const y
 ) {
+	/* start on an octave boundary */
+	int32_t octave, offset;
+	roll_lane_decompose(&octave, &offset, roll->view_lane);
+
+	int32_t const
+		align_x = x - offset,
+		align_w = width + offset;
+
+	/* compute layout */
+	int32_t const
+		roll_x = x,
+		roll_y = y,
+		roll_width = width,
+		roll_height = height - KBD_OCTAVE_HEIGHT;
+
+	int32_t const
+		kbd_x = align_x,
+		kbd_y = y + height - KBD_OCTAVE_HEIGHT;
+	
+	/* roll lanes */
+	{
+		int32_t view_lane_end = roll->view_lane + roll_width;
+		for (int32_t lane = roll->view_lane; lane < view_lane_end; ++lane) {
+			int32_t octave, offset;
+			enum note note;
+			roll_lane_decompose_with_note(&octave, &offset, &note, lane);
+			if (note == NOTE_INVALID) {
+				continue;
+			}
+			int32_t const lane_x = lane + roll_x;
+			for (int32_t i = 0; i < roll_height; ++i) {
+				int32_t const lane_y = i + roll_y;
+				t_frame_cell_at(dst, lane_x, lane_y)->ch = '|';
+			}
+		}
+	}
+
+	/* keyboard */
+	{
+		struct t_frame frame_scratch = 
+			T_SCRATCH_FRAME(128, KBD_OCTAVE_WIDTH, KBD_OCTAVE_HEIGHT);
+
+		int32_t width_covered = 0;
+		while (width_covered < align_w) {
+			t_frame_init_pattern(&frame_scratch, g_kbd_frame);
+			/*
+			t_frame_paint(&frame_scratch, 
+				kbd->color.frame_fg,
+				kbd->color.frame_bg
+			);
+			*/
+			t_frame_cull(&frame_scratch, ' ');
+
+			for (int32_t j = 0; j < roll->_indices_ptr; ++j) {
+				int32_t tone_octave, tone_note;
+				roll_index_decompose(
+					&tone_octave, &tone_note, roll->_indices[j]
+				);
+				if (tone_octave != octave) {
+					continue;
+				}
+
+				struct t_frame frame_note = T_SCRATCH_FRAME(128, 0, 0);
+				t_frame_init_pattern(&frame_note, g_kbd_notes[tone_note]);
+				t_frame_cull(&frame_note, ' ');
+				t_frame_overlay(&frame_scratch, &frame_note, 0, 0);
+			}
+
+			/*
+			t_frame_map(&frame_scratch,
+				~(0), T_WASHED, kbd->color.idle_white, 'w', ' '
+			);
+			t_frame_map(&frame_scratch,
+				~(0), T_WASHED, kbd->color.idle_black, 'b', ' '
+			);
+			t_frame_map(&frame_scratch,
+				~(0), T_WASHED, kbd->color.active_white, 'W', ' '
+			);
+			t_frame_map(&frame_scratch,
+				~(0), T_WASHED, kbd->color.active_black, 'B', ' '
+			);
+			*/
+
+			t_frame_overlay(dst, &frame_scratch, 
+				kbd_x + width_covered, kbd_y
+			);
+
+			++octave;
+			width_covered += KBD_OCTAVE_LANES;
+		}
+	}
+	
+	return T_OK;
+#if 0
 	/* make sure we start on on an octave boundary */
 	int32_t octave, offset;
 	keyboard_lane_decompose(&octave, &offset, lane);
@@ -245,51 +280,5 @@ keyboard_draw(
 	x     -= offset;
 	width += offset;
 
-	/* setup scratch frames */
-	struct t_frame frame_scratch = 
-		T_SCRATCH_FRAME(128, KBD_OCTAVE_WIDTH, KBD_OCTAVE_HEIGHT);
-
-	while (width > 0) {
-		t_frame_init_pattern(&frame_scratch, g_kbd_frame);
-		t_frame_paint(&frame_scratch, 
-			kbd->color.frame_fg,
-			kbd->color.frame_bg
-		);
-		t_frame_cull(&frame_scratch, ' ');
-
-		for (int32_t j = 0; j < kbd->_tone_pointer; ++j) {
-			int32_t tone_octave, tone_note;
-			keyboard_index_decompose(
-				&tone_octave, &tone_note, kbd->_tones_active[j]._index
-			);
-			if (tone_octave != octave) {
-				continue;
-			}
-
-			struct t_frame frame_note = T_SCRATCH_FRAME(128, 0, 0);
-			t_frame_init_pattern(&frame_note, g_kbd_notes[tone_note]);
-			t_frame_cull(&frame_note, ' ');
-			t_frame_overlay(&frame_scratch, &frame_note, 0, 0);
-		}
-
-		t_frame_map(&frame_scratch,
-			~(0), T_WASHED, kbd->color.idle_white, 'w', ' '
-		);
-		t_frame_map(&frame_scratch,
-			~(0), T_WASHED, kbd->color.idle_black, 'b', ' '
-		);
-		t_frame_map(&frame_scratch,
-			~(0), T_WASHED, kbd->color.active_white, 'W', ' '
-		);
-		t_frame_map(&frame_scratch,
-			~(0), T_WASHED, kbd->color.active_black, 'B', ' '
-		);
-
-		t_frame_overlay(dst, &frame_scratch, x, y);
-
-		++octave;
-		x     += KBD_OCTAVE_LANES;
-		width -= KBD_OCTAVE_LANES;
-	}
-	return T_OK;
+#endif
 }

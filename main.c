@@ -26,7 +26,7 @@
 struct appctx
 {
 	struct t_frame  frame;
-	struct keyboard keyboard;
+	struct roll     roll;
 
 	/* */
 	bool            should_run;
@@ -39,32 +39,7 @@ struct appctx
 	int32_t         user_octave;
 	double          tm_staccato_sustain;
 	double          tm_required_delta_graphics;
-
-	struct {
-		int32_t     tick_scale;
-
-		/* describes the viewport coordinates on a midi roll. */
-		int32_t     visual_lane;
-		int32_t     visual_atom;
-
-		/* describes the location of the user's cursor on the midi roll. */
-		int32_t     cursor_index;
-		int32_t     cursor_atom;
-	} ed;
 };
-
-static inline void
-app_do_human_staccato(
-	struct appctx *ac,
-	enum note note
-) {
-	keyboard_tone_activate(
-		&ac->keyboard,
-		ac->tm_now,
-		ac->tm_staccato_sustain,
-		keyboard_index_compose(ac->user_octave, note)
-	);
-}
 
 static inline enum t_status
 app_initialize(
@@ -79,7 +54,7 @@ app_initialize(
 		return stat;
 	}
 
-	keyboard_init(&ac->keyboard);
+	roll_init(&ac->roll);
 
 	/* finalize */
 	t_setup();
@@ -96,6 +71,7 @@ app_initialize(
 	int32_t term_w, term_h;
 	t_termsize(&term_w, &term_h);
 
+#if 0
 	ac->keyboard.color.frame_fg = T_RGB(96, 96, 96);
 	ac->keyboard.color.frame_bg = T_WASHED;
 	ac->keyboard.color.idle_white = T_RGB(96, 96, 96);
@@ -104,6 +80,7 @@ app_initialize(
 	ac->keyboard.color.active_black = T_RGB(96, 96, 96);
 
 	ac->ed.visual_lane = keyboard_lane_compose_with_note(4, NOTE_C) - term_w / 2;
+#endif
 
 	return T_OK;
 }
@@ -150,6 +127,10 @@ app_rasterize(
 		frame_w = ac->frame.width,
 		frame_h = ac->frame.height;
 
+	/* */
+	roll_draw(&ac->frame, &ac->roll, frame_w - 2, frame_h - 2, 1, 1);
+
+#if 0
 	keyboard_tones_deactivate_expired(&ac->keyboard, ac->tm_now);
 	keyboard_draw(
 		&ac->frame, 
@@ -159,6 +140,7 @@ app_rasterize(
 		frame_h - KBD_OCTAVE_HEIGHT - 1,
 		frame_w
 	);
+#endif
 
 	/* rasterize */
 	t_frame_rasterize(&ac->frame, 0, 0);
@@ -201,40 +183,40 @@ main()
 		switch (t_poll()) {
 		/* keyboard keybinds */
 		case T_POLL_CODE(0, 'q'):
-			app_do_human_staccato(&ac, NOTE_C);
+			roll_tone_toggle(&ac.roll, NOTE_C);
 			break;
 		case T_POLL_CODE(0, '2'):
-			app_do_human_staccato(&ac, NOTE_Cs);
+			roll_tone_toggle(&ac.roll, NOTE_Cs);
 			break;
 		case T_POLL_CODE(0, 'w'):
-			app_do_human_staccato(&ac, NOTE_D);
+			roll_tone_toggle(&ac.roll, NOTE_D);
 			break;
 		case T_POLL_CODE(0, '3'):
-			app_do_human_staccato(&ac, NOTE_Ds);
+			roll_tone_toggle(&ac.roll, NOTE_Ds);
 			break;
 		case T_POLL_CODE(0, 'e'):
-			app_do_human_staccato(&ac, NOTE_E);
+			roll_tone_toggle(&ac.roll, NOTE_E);
 			break;
 		case T_POLL_CODE(0, 'r'):
-			app_do_human_staccato(&ac, NOTE_F);
+			roll_tone_toggle(&ac.roll, NOTE_F);
 			break;
 		case T_POLL_CODE(0, '5'):
-			app_do_human_staccato(&ac, NOTE_Fs);
+			roll_tone_toggle(&ac.roll, NOTE_Fs);
 			break;
 		case T_POLL_CODE(0, 't'):
-			app_do_human_staccato(&ac, NOTE_G);
+			roll_tone_toggle(&ac.roll, NOTE_G);
 			break;
 		case T_POLL_CODE(0, '6'):
-			app_do_human_staccato(&ac, NOTE_Gs);
+			roll_tone_toggle(&ac.roll, NOTE_Gs);
 			break;
 		case T_POLL_CODE(0, 'y'):
-			app_do_human_staccato(&ac, NOTE_A);
+			roll_tone_toggle(&ac.roll, NOTE_A);
 			break;
 		case T_POLL_CODE(0, '7'):
-			app_do_human_staccato(&ac, NOTE_As);
+			roll_tone_toggle(&ac.roll, NOTE_As);
 			break;
 		case T_POLL_CODE(0, 'u'):
-			app_do_human_staccato(&ac, NOTE_B);
+			roll_tone_toggle(&ac.roll, NOTE_B);
 			break;
 
 		/* administrative keybinds */

@@ -116,7 +116,7 @@ t_rgb_compress_256(
 #define t_background_256_ex(r, g, b) \
 	t_background_256_rgba(T_RGB(r, g, b))
 
-/* +--- FRAME DRAWING ---------------------------------------------+ */
+/* +--- MANAGING FRAME --------------------------------------------+ */
 struct t_cell
 {
 	/* see t_sequence.h for how color is packed */
@@ -132,7 +132,6 @@ struct t_frame
 	int32_t height;
 };
 
-/* +--- MANAGING --------------------------------------------------+ */
 enum t_status
 t_frame_create(
 	struct t_frame *dst,
@@ -158,11 +157,20 @@ t_frame_resize(
 	int32_t n_height
 );
 
-/* +--- MANUAL ----------------------------------------------------+ */
+/* +--- MANUAL FRAME ----------------------------------------------+ */
 #define T_SCRATCH_GRID(ncells) \
 	((struct t_cell[ncells]){{0}})
 #define T_SCRATCH_FRAME(ncells, Mwidth, Mheight) \
 	((struct t_frame){ .grid = T_SCRATCH_GRID(ncells), .width = Mwidth, .height = Mheight, })
+
+static inline struct t_cell *
+t_frame_cell_at(
+	struct t_frame *src,
+	int32_t x,
+	int32_t y
+) {
+	return &src->grid[(y * src->width) + x];
+}
 
 enum t_status
 t_frame_init_pattern(
@@ -170,7 +178,7 @@ t_frame_init_pattern(
 	char const *pattern
 );
 
-/* +--- DRAWING ---------------------------------------------------+ */
+/* +--- MAPPING ---------------------------------------------------+ */
 #define T_MAP_CH         0x01
 #define T_MAP_FOREGROUND 0x02
 #define T_MAP_BACKGROUND 0x04
@@ -205,6 +213,7 @@ t_frame_cull(
 	t_frame_map(dst, ~(0), 0, 0, what, '\0');
 }
 
+/* +--- BLENDING --------------------------------------------------+ */
 void
 t_frame_overlay(
 	struct t_frame *dst,
@@ -213,6 +222,7 @@ t_frame_overlay(
 	int32_t y
 );
 
+/* +--- RASTERIZING -----------------------------------------------+ */
 enum t_status
 t_frame_rasterize(
 	struct t_frame *src,
