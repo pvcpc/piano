@@ -1,6 +1,3 @@
-/* WIP demo source -- used for random testing and not for any 
- * particular demonstration.
- */
 #include <stdio.h>
 #include <math.h>
 
@@ -70,17 +67,6 @@ app_initialize(
 	/* cosmetic initialization */
 	int32_t term_w, term_h;
 	t_termsize(&term_w, &term_h);
-
-#if 0
-	ac->keyboard.color.frame_fg = T_RGB(96, 96, 96);
-	ac->keyboard.color.frame_bg = T_WASHED;
-	ac->keyboard.color.idle_white = T_RGB(96, 96, 96);
-	ac->keyboard.color.idle_black = T_WASHED;
-	ac->keyboard.color.active_white = T_RGB(128, 128, 128);
-	ac->keyboard.color.active_black = T_RGB(96, 96, 96);
-
-	ac->ed.visual_lane = keyboard_lane_compose_with_note(4, NOTE_C) - term_w / 2;
-#endif
 
 	return T_OK;
 }
