@@ -102,7 +102,9 @@ app_rasterize(
 	t_reset();
 	t_clear();
 
-	/* */
+	/*
+	 * Reasonable terminal size check
+	 */
 	int32_t term_w, term_h;
 	t_termsize(&term_w, &term_h);
 
@@ -119,28 +121,17 @@ app_rasterize(
 		return;
 	}
 
-	/* */
+	/*
+	 * Rendering
+	 */
 	t_frame_resize(&ac->frame, term_w, term_h);
 	t_frame_clear(&ac->frame);
 
-	int32_t const 
-		frame_w = ac->frame.width,
-		frame_h = ac->frame.height;
-
-	/* */
-	roll_draw(&ac->frame, &ac->roll, frame_w - 2, frame_h - 2, 1, 1);
-
-#if 0
-	keyboard_tones_deactivate_expired(&ac->keyboard, ac->tm_now);
-	keyboard_draw(
-		&ac->frame, 
-		&ac->keyboard, 
-		ac->ed.visual_lane,
-		0, 
-		frame_h - KBD_OCTAVE_HEIGHT - 1,
-		frame_w
-	);
-#endif
+	t_frame_push_inset_clip(&ac->frame, 1, 5, 1, 5);
+	{
+		roll_draw(&ac->frame, &ac->roll);
+	}
+	t_frame_pop_clip(&ac->frame);
 
 	/* rasterize */
 	t_frame_rasterize(&ac->frame, 0, 0);

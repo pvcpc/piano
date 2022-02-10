@@ -173,15 +173,20 @@ roll_tone_toggle(
 enum t_status
 roll_draw(
 	struct t_frame *dst,
-	struct roll *roll,
-	int32_t const width,
-	int32_t const height,
-	int32_t const x,
-	int32_t const y
+	struct roll *roll
 ) {
 	/* start on an octave boundary */
 	int32_t octave, offset;
 	roll_lane_decompose(&octave, &offset, roll->view_lane);
+
+	struct t_box clip;
+	t_frame_compute_clip(&clip, dst);
+
+	int32_t const
+		x = clip.x0, 
+		y = clip.y0, 
+		width = T_BOX_WIDTH(&clip), 
+		height = T_BOX_HEIGHT(&clip);
 
 	int32_t const
 		align_x = x - offset,
@@ -196,11 +201,12 @@ roll_draw(
 
 	int32_t const
 		kbd_x = align_x,
-		kbd_y = y + height - KBD_OCTAVE_HEIGHT;
+		kbd_y = height - KBD_OCTAVE_HEIGHT;
 	
 	/* roll lanes */
 	{
 		int32_t view_lane_end = roll->view_lane + roll_width;
+
 		for (int32_t lane = roll->view_lane; lane < view_lane_end; ++lane) {
 			int32_t octave, offset;
 			enum note note;
@@ -208,6 +214,7 @@ roll_draw(
 			if (note == NOTE_INVALID) {
 				continue;
 			}
+
 			int32_t const lane_x = lane + roll_x;
 			for (int32_t i = 0; i < roll_height; ++i) {
 				int32_t const lane_y = i + roll_y;
@@ -224,12 +231,6 @@ roll_draw(
 		int32_t width_covered = 0;
 		while (width_covered < align_w) {
 			t_frame_init_pattern(&frame_scratch, g_kbd_frame);
-			/*
-			t_frame_paint(&frame_scratch, 
-				kbd->color.frame_fg,
-				kbd->color.frame_bg
-			);
-			*/
 			t_frame_cull(&frame_scratch, ' ');
 
 			for (int32_t j = 0; j < roll->_indices_ptr; ++j) {
@@ -247,21 +248,6 @@ roll_draw(
 				t_frame_overlay(&frame_scratch, &frame_note, 0, 0);
 			}
 
-			/*
-			t_frame_map(&frame_scratch,
-				~(0), T_WASHED, kbd->color.idle_white, 'w', ' '
-			);
-			t_frame_map(&frame_scratch,
-				~(0), T_WASHED, kbd->color.idle_black, 'b', ' '
-			);
-			t_frame_map(&frame_scratch,
-				~(0), T_WASHED, kbd->color.active_white, 'W', ' '
-			);
-			t_frame_map(&frame_scratch,
-				~(0), T_WASHED, kbd->color.active_black, 'B', ' '
-			);
-			*/
-
 			t_frame_overlay(dst, &frame_scratch, 
 				kbd_x + width_covered, kbd_y
 			);
@@ -272,13 +258,4 @@ roll_draw(
 	}
 	
 	return T_OK;
-#if 0
-	/* make sure we start on on an octave boundary */
-	int32_t octave, offset;
-	keyboard_lane_decompose(&octave, &offset, lane);
-
-	x     -= offset;
-	width += offset;
-
-#endif
 }

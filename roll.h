@@ -206,11 +206,7 @@ roll_tone_toggle(
 enum t_status
 roll_draw(
 	struct t_frame *dst,
-	struct roll *roll,
-	int32_t width,
-	int32_t height,
-	int32_t x,
-	int32_t y
+	struct roll *roll
 );
 
 #endif /* INCLUDE_KEYBOARD_H */

@@ -24,43 +24,6 @@ t__background_256(
 }
 
 /* +--- FRAME DRAWING ---------------------------------------------+ */
-#define T__COORD_INF 65535
-
-struct t__intersection
-{
-	int32_t width;
-	int32_t height;
-
-	struct { int32_t x, y; } dst;
-	struct { int32_t x, y; } src;
-};
-
-static inline void
-t__intersection_compute(
-	struct t__intersection *out,
-	int32_t dst_w,
-	int32_t dst_h,
-	int32_t src_w,
-	int32_t src_h,
-	int32_t src_x,
-	int32_t src_y
-) {
-	int32_t const
-		x0 = T_MAX(0, src_x),
-		y0 = T_MAX(0, src_y),
-		x1 = T_MAX(x0, T_MIN(dst_w, src_x + src_w)),
-		y1 = T_MAX(y0, T_MIN(dst_h, src_y + src_h));
-
-	out->width  = x1 - x0;
-	out->height = y1 - y0;
-
-	out->dst.x  = x0;
-	out->dst.y  = y0;
-
-	out->src.x  = x0 - src_x;
-	out->src.y  = y0 - src_y;
-}
-
 static inline void
 t__frame_zero(
 	struct t_frame *frame
@@ -223,6 +186,49 @@ t_frame_init_pattern(
 	return T_OK;
 }
 
+void
+t_frame_compute_clip(
+	struct t_box *dst,
+	struct t_frame *src
+) {
+	struct t_box resulting_clip = T_BOX_WH(src->width, src->height);
+	if (src->_clip_index) {
+		struct t_box *top_clip = &src->_clip_stack[src->_clip_index-1];
+		t_box_intersect(
+			&resulting_clip,
+			&resulting_clip,
+			t_box_clamp_offset_to_origin(
+				top_clip,
+				top_clip
+			)
+		);
+	}
+	*dst = resulting_clip;
+}
+
+enum t_status
+t_frame_push_inset_clip(
+	struct t_frame *dst,
+	int32_t lx,
+	int32_t ly,
+	int32_t rx,
+	int32_t ry
+) {
+	if (dst->_clip_index < TC_FRAME_CONTEXT_SLOTS) {
+		struct t_box current_clip;
+		t_frame_compute_clip(&current_clip, dst);
+
+		struct t_box *dst_clip = &dst->_clip_stack[dst->_clip_index++];
+		dst_clip->x0 = current_clip.x0 + lx;
+		dst_clip->y0 = current_clip.y0 + ly;
+		dst_clip->x1 = current_clip.x1 - lx;
+		dst_clip->y1 = current_clip.y1 - ly;
+
+		t_box_clamp_offset_to_origin(dst_clip, dst_clip);
+	}
+	return T_EOVERFLO;
+}
+
 /* +--- DRAWING ---------------------------------------------------+ */
 void
 t_frame_map(
@@ -233,8 +239,11 @@ t_frame_map(
 	char from,
 	char to
 ) {
-	for (int32_t y = 0; y < dst->height; ++y) {
-		for (int32_t x = 0; x < dst->width; ++x) {
+	struct t_box clip;
+	t_frame_compute_clip(&clip, dst);
+
+	for (int32_t y = clip.y0; y < clip.y1; ++y) {
+		for (int32_t x = clip.x0; x < clip.x1; ++x) {
 			struct t_cell *cell = t_frame_cell_at(dst, x, y);
 			if (cell->ch == from) {
 				if (mode & T_MAP_CH) cell->ch = to;
@@ -249,6 +258,7 @@ void
 t_frame_clear(
 	struct t_frame *frame
 ) {
+	/* @TODO(max): abide by clip */
 	memset(frame->grid, 0,
 		sizeof(struct t_cell) * 
 		frame->width *
@@ -262,8 +272,11 @@ t_frame_paint(
 	uint32_t fg_rgba,
 	uint32_t bg_rgba
 ) {
-	for (uint32_t y = 0; y < dst->height; ++y) {
-		for (uint32_t x = 0; x < dst->width; ++x) {
+	struct t_box clip;
+	t_frame_compute_clip(&clip, dst);
+
+	for (uint32_t y = clip.y0; y < clip.y1; ++y) {
+		for (uint32_t x = clip.x0; x < clip.x1; ++x) {
 			struct t_cell *cell = t_frame_cell_at(dst, x, y);
 			cell->rgba_fg = fg_rgba;
 			cell->rgba_bg = bg_rgba;
@@ -278,22 +291,23 @@ t_frame_overlay(
 	int32_t x,
 	int32_t y
 ) {
-	struct t__intersection box;
-	t__intersection_compute(&box,
-		dst->width, dst->height,
-		src->width, src->height,
-		x, y
-	);
+	struct t_box dst_clip, src_clip;
+	t_frame_compute_clip(&dst_clip, dst);
+	t_frame_compute_clip(&src_clip, src);
 
-	for (int32_t j = 0; j < box.height; ++j) {
-		for (int32_t i = 0; i < box.width; ++i) {
+	t_box_translate(&src_clip, &src_clip, x, y);
+	t_box_intersect(&dst_clip, &dst_clip, &src_clip);
+	t_box_translate(&src_clip, &dst_clip, -x, -y);
+
+	for (int32_t j = 0; j < T_BOX_HEIGHT(&dst_clip); ++j) {
+		for (int32_t i = 0; i < T_BOX_WIDTH(&dst_clip); ++i) {
 			int32_t const
-				src_x = box.src.x + i,
-				src_y = box.src.y + j;
+				src_x = src_clip.x0 + i,
+				src_y = src_clip.y0 + j;
 
 			int32_t const
-				dst_x = box.dst.x + i,
-				dst_y = box.dst.y + j;
+				dst_x = dst_clip.x0 + i,
+				dst_y = dst_clip.y0 + j;
 
 			struct t_cell *dst_cell = t_frame_cell_at(dst, dst_x, dst_y);
 			struct t_cell *src_cell = t_frame_cell_at(src, src_x, src_y);
@@ -314,31 +328,30 @@ t_frame_rasterize(
 	int32_t x,
 	int32_t y
 ) {
-	if (!src) return T_ENULL;
+	int32_t term_width, term_height;
+	t_termsize(&term_width, &term_height);
 
-	int32_t term_w, term_h;
-	t_termsize(&term_w, &term_h);
+	struct t_box dst_clip = T_BOX_WH(term_width, term_height);
+	struct t_box src_clip;
+	t_frame_compute_clip(&src_clip, src);
 
-	struct t__intersection box;
-	t__intersection_compute(&box,
-		term_w, term_h,
-		src->width, src->height,
-		x, y
-	);
+	t_box_translate(&src_clip, &src_clip, x, y);
+	t_box_intersect(&dst_clip, &dst_clip, &src_clip);
+	t_box_translate(&src_clip, &dst_clip, -x, -y);
 
 	/* any constants less than -1 required for init */
-	int32_t prior_x = -T__COORD_INF;
-	int32_t prior_y = -T__COORD_INF;
+	int32_t prior_x = INT32_MIN;
+	int32_t prior_y = INT32_MIN;
 
 	int32_t prior_rgba_fg = T_RGBA(0, 0, 0, 0);
 	int32_t prior_rgba_bg = T_RGBA(0, 0, 0, 0);
 	t_reset();
 
-	for (int32_t j = 0; j < box.height; ++j) {
-		for (int32_t i = 0; i < box.width; ++i) {
+	for (int32_t j = 0; j < T_BOX_HEIGHT(&dst_clip); ++j) {
+		for (int32_t i = 0; i < T_BOX_WIDTH(&dst_clip); ++i) {
 			int32_t const
-				src_x = box.src.x + i,
-				src_y = box.src.y + j;
+				src_x = src_clip.x0 + i,
+				src_y = src_clip.y0 + j;
 
 			struct t_cell *cell = t_frame_cell_at(src, src_x, src_y);
 			if (!cell->ch) {
@@ -346,8 +359,8 @@ t_frame_rasterize(
 			}
 
 			int32_t const
-				dst_x = box.dst.x + i,
-				dst_y = box.dst.y + j;
+				dst_x = dst_clip.x0 + i,
+				dst_y = dst_clip.y0 + j;
 
 			/* CURSOR POS */
 			int32_t delta_x = dst_x - prior_x;

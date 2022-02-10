@@ -15,6 +15,8 @@
  *
  * - TC_GRID_ALIGN (default 16):
  * - TC_GRID_BLOCK(default 16):
+ *
+ * - TC_FRAME_CONTEXT_SLOTS (default 4):
  */
 #ifndef TC_CELL_BLOCK_WIDTH
 #  define TC_CELL_BLOCK_WIDTH 16
@@ -32,7 +34,11 @@
 #  define TC_GRID_BLOCK 16
 #endif
 
-/* +--- COLOR UTILITIES -------------------------------------------+ */
+#ifndef TC_FRAME_CONTEXT_SLOTS
+#  define TC_FRAME_CONTEXT_SLOTS 4
+#endif
+
+/* +--- UTILITIES -------------------------------------------------+ */
 #define T_RGBA(r, g, b, a) (   \
 	(((a) & 0xff) << 24) | \
 	(((b) & 0xff) << 16) | \
@@ -116,22 +122,124 @@ t_rgb_compress_256(
 #define t_background_256_ex(r, g, b) \
 	t_background_256_rgba(T_RGB(r, g, b))
 
-/* +--- MANAGING FRAME --------------------------------------------+ */
+struct t_box
+{
+	int32_t x0, y0;
+	int32_t x1, y1;
+};
+
+#define T_BOX(x, y, width, height) \
+	((struct t_box){ x, y, width, height, })
+#define T_BOX_WH(width, height) \
+	((struct t_box){ 0, 0, width, height, })
+
+#define T_BOX_WIDTH(box_ptr) \
+	((box_ptr)->x1 - (box_ptr)->x0)
+#define T_BOX_HEIGHT(box_ptr) \
+	((box_ptr)->y1 - (box_ptr)->y0)
+
+static inline struct t_box *
+t_box_translate(
+	struct t_box *dst,
+	struct t_box const *src,
+	int32_t x,
+	int32_t y
+) {
+	dst->x0 = src->x0 + x;
+	dst->y0 = src->y0 + y;
+	dst->x1 = src->x1 + x;
+	dst->y1 = src->y1 + y;
+	return dst;
+}
+
+static inline struct t_box *
+t_box_clamp_offset_to_origin(
+	struct t_box *dst,
+	struct t_box *src
+) {
+	/* ensures x1 >= x0 && y1 >= y0 by clamping x1, y1 to be above
+	 * x0, y0 if necessary */
+	dst->x0 = src->x0;
+	dst->y0 = src->y0;
+	dst->x1 = T_MAX(src->x0, src->x1);
+	dst->y1 = T_MAX(src->y0, src->y1);
+	return dst;
+}
+
+static inline struct t_box *
+t_box_standardize(
+	struct t_box *dst,
+	struct t_box const *src
+) {
+	/* @NOTE(max): by standard form we mean x0 <= x1 && y0 <= y1,
+	 * so this function swaps values to make the condition true as
+	 * opposed to clamping x1 to x0 if x1 < x0 or y1 to y0 if y0 < y1
+	 * (see `t_box_clamp_offset_to_origin`).
+	 */
+	int32_t const
+		tx0 = T_MIN(src->x0, src->x1),
+		ty0 = T_MIN(src->y0, src->y1),
+		tx1 = T_MAX(src->x0, src->x1),
+		ty1 = T_MAX(src->y0, src->y1);
+	dst->x0 = tx0;
+	dst->y0 = ty0;
+	dst->x1 = tx1;
+	dst->y1 = ty1;
+	return dst;
+}
+
+static inline struct t_box *
+t_box_intersect_boff(
+	struct t_box *dst,
+	struct t_box const *boxa,
+	struct t_box const *boxb,
+	int32_t boffx,
+	int32_t boffy
+) {
+	/* @NOTE(max): boxa and boxb assumed to be in standard form */
+	int32_t const
+		tx0 = T_MAX(boxa->x0, boxb->x0 + boffx),
+		ty0 = T_MAX(boxa->y0, boxb->y0 + boffy),
+		tx1 = T_MIN(boxa->x1, boxb->x1 + boffx),
+		ty1 = T_MIN(boxa->y1, boxb->y1 + boffy);
+	dst->x0 = tx0;
+	dst->y0 = ty0;
+	dst->x1 = tx1;
+	dst->y1 = ty1;
+	return t_box_clamp_offset_to_origin(dst, dst);
+}
+
+static inline struct t_box *
+t_box_intersect(
+	struct t_box *dst,
+	struct t_box const *boxa,
+	struct t_box const *boxb
+) {
+	return t_box_intersect_boff(dst, boxa, boxb, 0, 0);
+}
+
+/* +--- FRAME -----------------------------------------------------+ */
 struct t_cell
 {
 	/* see t_sequence.h for how color is packed */
-	uint32_t rgba_fg; 
-	uint32_t rgba_bg;
-	uint8_t ch;
+	uint32_t       rgba_fg; 
+	uint32_t       rgba_bg;
+	uint8_t        ch;
 };
 
 struct t_frame
 {
 	struct t_cell *grid;
-	int32_t width;
-	int32_t height;
+	int32_t        width;
+	int32_t        height;
+
+	/* context */
+	struct t_box   _clip_stack [TC_FRAME_CONTEXT_SLOTS];
+	uint32_t       _clip_index;
 };
 
+
+/* +--- AUTOMATIC MANAGEMENT --------------------------------------+ */
 enum t_status
 t_frame_create(
 	struct t_frame *dst,
@@ -157,7 +265,7 @@ t_frame_resize(
 	int32_t n_height
 );
 
-/* +--- MANUAL FRAME ----------------------------------------------+ */
+/* +--- MANUAL MANAGEMENT -----------------------------------------+ */
 #define T_SCRATCH_GRID(ncells) \
 	((struct t_cell[ncells]){{0}})
 #define T_SCRATCH_FRAME(ncells, Mwidth, Mheight) \
@@ -177,6 +285,30 @@ t_frame_init_pattern(
 	struct t_frame *dst,
 	char const *pattern
 );
+
+void
+t_frame_compute_clip(
+	struct t_box *dst,
+	struct t_frame *src
+);
+
+enum t_status
+t_frame_push_inset_clip(
+	struct t_frame *dst,
+	int32_t lx,
+	int32_t ly,
+	int32_t rx,
+	int32_t ry
+);
+
+static inline void
+t_frame_pop_clip(
+	struct t_frame *src
+) {
+	if (src->_clip_index) {
+		--src->_clip_index;
+	}
+}
 
 /* +--- MAPPING ---------------------------------------------------+ */
 #define T_MAP_CH         0x01
