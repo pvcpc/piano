@@ -1,14 +1,14 @@
 CC      := /usr/bin/gcc
-CFLAGS  := -DDEMO_PAUSE_BEFORE_EXIT -std=gnu99 -Wall -pedantic
-CLIBS   := -lm -lsoundio
+CFLAGS  := -std=gnu11 -Wall -pedantic
+CLIBS   := -lm
 
 sources := $(wildcard *.c)
 target  := a.out
 
 ifdef NDEBUG
-	CFLAGS += -O2 -march=native -mtune=native -DNDEBUG
+CFLAGS  += -O2 -march=native -mtune=native -DNDEBUG
 else
-	CFLAGS += -O0 -ggdb -DTC_DEBUG_METRICS
+CFLAGS  += -O0 -ggdb -DTC_DEBUG_METRICS
 endif
 
 $(target): $(sources)
