@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -80,6 +81,19 @@ t_manager_cleanup()
 	tcsetattr(STDIN_FILENO, TCSANOW, &g_tios_old);
 }
 
+void
+t_query_size(s32 *out_w, s32 *out_h)
+{
+	struct winsize ws;
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) < 0) {
+		/* @TODO(max): what to do here ? */
+		return;
+	}
+
+	if (out_w) *out_w = (s32) ws.ws_col;
+	if (out_h) *out_h = (s32) ws.ws_row;
+}
+
 enum epm_code /* escape pars(er|ing) machine */
 {
 	/* parsing codes */
@@ -108,7 +122,6 @@ enum epm_code /* escape pars(er|ing) machine */
 	EPM_HALT_EMIT,
 };
 
-/* @GLOBAL */
 /* https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-PC-Style-Function-Keys */
 /* @NOTE(max): the way T_* keys are assigned, this table is actually just
  * an identity table, so it may be removed if the modifiers are not
@@ -463,14 +476,14 @@ e_flush:
 }
 
 u32
-t_write_f(char const *format, ...) 
+t_writef(char const *format, ...) 
 {
 	if (!format) return 0;
 
 	va_list vl;
 	va_start(vl, format);
 
-	int render_size = vsnprintf(
+	s32 render_size = vsnprintf(
 		g_write_f_buf,
 		g_write_f_buf_size,
 		format,
@@ -484,7 +497,7 @@ t_write_f(char const *format, ...)
 
 	if (render_size >= g_write_f_buf_size) {
 		/* align for vectorized memcpy */
-		uint32_t const target_size = ALIGN_UP(render_size, 16);
+		u32 const target_size = ALIGN_UP(render_size, 16);
 		if ((posix_memalign((void **) &g_write_f_buf, 16, target_size)) != 0) {
 			/* TODO(max): log this once logging is impleemnted */
 			return 0;

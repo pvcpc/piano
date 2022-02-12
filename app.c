@@ -46,6 +46,9 @@ main(void)
 			t_writez("Got d");
 			break;
 		}
+
+		t_cursor_pos(1, 1);
+		t_writef("Current time: %.2f", seconds_since_genesis());
 		t_flush();
 	}
 
@@ -56,10 +59,18 @@ main(void)
 	return 0;
 }
 
+double
+seconds_since_genesis()
+{
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
 
+	return   (now.tv_sec - g_genesis.tv_sec)
+		   + (now.tv_nsec - g_genesis.tv_nsec) * 1e-9;
+}
 
 void
-panic_and_die(int code, char const *message) 
+panic_and_die(u32 code, char const *message) 
 {
 	fputs(message, stderr);
 	exit(code);
