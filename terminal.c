@@ -476,6 +476,12 @@ e_flush:
 }
 
 u32
+t_writec(char ch)
+{
+	return t_write((u8 const *) &ch, 1);
+}
+
+u32
 t_writef(char const *format, ...) 
 {
 	if (!format) return 0;

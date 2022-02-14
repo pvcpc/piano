@@ -62,6 +62,9 @@ u32
 t_write(u8 const *message, u32 size);
 
 u32
+t_writec(char ch);
+
+u32
 t_writef(char const *format, ...);
 
 u32

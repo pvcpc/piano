@@ -3,10 +3,15 @@
 
 #include "common.h"
 
+#define APP__NANO 1000000000
+
 double
-seconds_since_genesis();
+app_sleep(double seconds);
+
+double
+app_clock();
 
 void
-panic_and_die(u32 code, char const *message);
+app_panic_and_die(u32 code, char const *message);
 
 #endif /* INCLUDE__APP_H */
