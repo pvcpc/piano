@@ -141,16 +141,36 @@ struct frame
 	 })
 
 /**
- * Alias for `memset(frame, 0, sizeof(struct frame))` for convenience.
+ * Identical to `memset(frame, 0, sizeof(struct frame))` for convenience.
  *
  * @param frame Frame struct to zero-out.
  *
  * @return The frame.
  */
 static inline struct frame *
-frame_zero_out(struct frame *frame)
+frame_zero_struct(struct frame *frame)
 {
-	return memset(frame, 0, sizeof(struct frame));
+	if (frame) {
+		memset(frame, 0, sizeof(struct frame));
+	}
+	return frame;
+}
+
+/**
+ * Identical to `memset(frame->grid, 0, frame->alloc.grid_alloc_usable_size)`
+ * for convenience.
+ *
+ * @param frame The frame whose grid to zero-out.
+ *
+ * @return The frame.
+ */
+static inline struct frame *
+frame_zero_grid(struct frame *frame)
+{
+	if (frame && frame->grid) {
+		memset(frame->grid, 0, frame->alloc.grid_alloc_usable_size);
+	}
+	return frame;
 }
 
 /**

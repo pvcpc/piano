@@ -55,7 +55,7 @@ frame_free(struct frame *frame)
 {
 	if (frame) {
 		free(frame);
-		frame_zero_out(frame);
+		frame_zero_struct(frame);
 	}
 }
 
