@@ -303,6 +303,7 @@ frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference);
  */
 u32
 frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate);
+#define frame_stencil_setnz(frame, mask, alternate) frame_stencil_seteq(frame, mask, aslternate)
 
 /**
  * Direct cell copy from `src` to `dst` at the specified offset (unless

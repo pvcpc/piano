@@ -173,6 +173,10 @@ frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y, s8 stencil)
 	frame_box_with_clip_accounted(&dstbox, dst);
 	frame_box_with_clip_accounted(&srcbox, src);
 
+	/* the actual (x,y) should be based on the clip anchor */
+	x += dstbox.x0;
+	y += dstbox.y0;
+
 	box_intersect_with_offset(
 		&dstbox, &srcbox,
 		&dstbox, &srcbox,
@@ -220,6 +224,10 @@ frame_typeset_raw(struct frame *dst, s32 x, s32 y, s8 stencil, char const *messa
 	}
 
 	u32 num_written = 0;
+
+	/* the actual (x,y) should be based on the clip anchor */
+	x += box.x0;
+	y += box.y0;
 
 	s32 i = x,
 		j = y;

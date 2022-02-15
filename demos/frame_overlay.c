@@ -25,7 +25,7 @@ main()
 		"|  |\n"
 		"+--+\n"
 	);
-	frame_load_pattern(&frame_b, 2, 2,
+	frame_load_pattern(&frame_b, 0, 0,
 		"+--+\n"
 		"|  |\n"
 		"|  |\n"
@@ -38,7 +38,15 @@ main()
 	frame_stencil_cmp(&frame_b, CELL_CONTENT_BIT, ' ');
 	frame_stencil_seteq(&frame_b, CELL_CONTENT_BIT, &CELL_CONTENT(0));
 
+	/* Demonstrate that overlays adhere to clipping */
+	frame_a.clip.tlx = 2;
+	frame_a.clip.tly = 2;
+
 	frame_overlay(&frame_a, &frame_b, 0, 0, 0);
+
+	frame_a.clip.tlx = 0;
+	frame_a.clip.tly = 0;
+
 	frame_rasterize(&frame_a, 0, 0);
 
 	app_cleanup_and_never_call_again();
