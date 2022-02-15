@@ -113,6 +113,9 @@ struct frame
 	s32           width;
 	s32           height;
 
+	/* Unless otherwise noted in the documentation, all routines below
+	 * adhere to he setting defined by this clip (or any frame context
+	 * for that matter.) */
 	struct clip   clip;
 
 	/* if used with frame_realloc, client shouldn't touch, otherwise,
@@ -225,7 +228,12 @@ frame_cell_at(struct frame *frame, s32 x, s32 y)
  */
 struct frame *
 frame_realloc(struct frame *frame, s32 width, s32 height);
-#define frame_alloc(frame, width, height) frame_realloc(frame, width, height)
+
+static inline struct frame *
+frame_alloc(struct frame *frame, s32 width, s32 height)
+{
+	return frame_realloc(frame_zero_struct(frame), width, height);
+}
 
 /**
  * Free automatically managed frame.
@@ -253,6 +261,9 @@ frame_resize(struct frame *frame, s32 width, s32 height);
 /**
  * Parses the given pattern and emplace it into the given frame at
  * the desired location.
+ *
+ * This routine DOES NOT adhere to the `frame->clip` setting. To adhere
+ * to the clip, use the `frame_typset*` family of functions instead.
  *
  * @param frame The frame where to emplace the pattern.
  * @param x The desired column.
@@ -301,11 +312,16 @@ frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate);
  * @param src The frame to source cells from.
  * @param x The desired src column offset.
  * @param y The desired src row offset.
+ * @param stencil The desired stencil value for copied cells.
  *
  * @param The number of `dst` cells affected.
  */
 u32
-frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y);
+frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y, s8 stencil);
+
+
+u32
+frame_typeset_raw(struct frame *dst, s32 x, s32 y, s8 stencil, char const *message);
 
 /**
  * Rasterizes the given frame to the master terminal at the given 

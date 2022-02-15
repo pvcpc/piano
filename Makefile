@@ -19,13 +19,16 @@ $(target): $(sources)
 demo_sources := $(wildcard demos/*.c)
 demo_targets := $(demo_sources:%.c=%)
 
-demos: $(demo_targets)
+demos: clean_demos $(demo_targets)
 
 $(demo_targets): %: %.c
 	$(CC) $(CFLAGS) $(CLIBS) -I./ -DAPP_NO_MAIN -o $@ $^ $(sources)
 
 clean:
-	rm $(target)
-	rm $(demo_targets)
+	rm -rf $(target)
+	rm -rf $(demo_targets)
 
-.PHONY: app demos clean
+clean_demos:
+	rm -rf $(demo_targets)
+
+.PHONY: app demos clean clean_demos

@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "geometry.h"
 #include "terminal.h"
@@ -103,8 +104,8 @@ frame_load_pattern(struct frame *frame, s32 x, s32 y, char const *pattern)
 			{
 				frame_cell_at(frame, i, j)->content = *pattern;
 				++num_emplaced;
-				++i;
 			}
+			++i;
 		}
 		++pattern;
 	}
@@ -127,11 +128,11 @@ frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference)
 	for (s32 j = box.y0; j < box.y1; ++j) {
 		for (s32 i = box.x0; i < box.x1; ++i) {
 			struct cell *cell = frame_cell_at(frame, i, j);
-			cell->stencil = 0;
-			cell->stencil |= generic_mask.foreground & (cell->foreground - reference);
-			cell->stencil |= generic_mask.background & (cell->background - reference);
-			cell->stencil |= generic_mask.content & (cell->content - reference);
-			cell->stencil |= generic_mask.stencil & (cell->stencil - reference);
+			u8 const foreground = generic_mask.foreground & (cell->foreground - reference);
+			u8 const background = generic_mask.background & (cell->background - reference);
+			s8 const content    = generic_mask.content    & (cell->content - reference);
+			s8 const stencil    = generic_mask.stencil    & (cell->stencil - reference);
+			cell->stencil = foreground | background | content | stencil;
 			num_nz += cell->stencil ? 1 : 0;
 		}
 	}
@@ -166,7 +167,7 @@ frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate)
 }
 
 u32
-frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y)
+frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y, s8 stencil)
 {
 	struct box dstbox, srcbox;
 	frame_box_with_clip_accounted(&dstbox, dst);
@@ -197,12 +198,62 @@ frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y)
 				continue;
 			}
 
-			*dstcell = *srccell;
+			dstcell->foreground = srccell->foreground;
+			dstcell->background = srccell->background;
+			dstcell->content = srccell->content;
+			dstcell->stencil = stencil;
 			++num_copied;
 		}
 	}
 
 	return num_copied;
+}
+
+u32
+frame_typeset_raw(struct frame *dst, s32 x, s32 y, s8 stencil, char const *message)
+{
+	struct box box;
+	frame_box_with_clip_accounted(&box, dst);
+
+	if (x >= box.x1 || y >= box.y1) {
+		return 0;
+	}
+
+	u32 num_written = 0;
+
+	s32 i = x,
+		j = y;
+
+	while (*message) {
+		switch (*message) { /* sure we can cascade, but that's mental overhead */
+
+		case '\n':
+			i = x;
+			++j;
+			break;
+
+		case '\v':
+			++j;
+			break;
+
+		case '\r':
+			i = x;
+			break;
+
+		default:
+			if ( (box.x0 <= i && i < box.x1) &&
+				 (box.y0 <= j && j < box.y1) )
+			{
+				struct cell *cell = frame_cell_at(dst, i, j);
+				cell->content = *message;
+				cell->stencil = stencil;
+				++num_written;
+			}
+			++i;
+		}
+		++message;
+	}
+	return num_written;
 }
 
 u32

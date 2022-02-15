@@ -75,6 +75,7 @@ t_manager_cleanup()
 	/* flush any remaining output in case things like `cursor_show()`
 	 * are called at the end to restore defaults.
 	 */
+	t_reset();
 	t_flush();
 
 	/* reset terminal settings back to normal */
