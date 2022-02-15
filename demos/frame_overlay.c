@@ -32,6 +32,12 @@ main()
 		"+--+\n"
 	);
 
+	frame_stencil_cmp(&frame_a, CELL_CONTENT_BIT, ' ');
+	frame_stencil_seteq(&frame_a, CELL_CONTENT_BIT, &CELL_CONTENT(0));
+
+	frame_stencil_cmp(&frame_b, CELL_CONTENT_BIT, ' ');
+	frame_stencil_seteq(&frame_b, CELL_CONTENT_BIT, &CELL_CONTENT(0));
+
 	frame_overlay(&frame_a, &frame_b, 0, 0);
 	frame_rasterize(&frame_a, 0, 0);
 
