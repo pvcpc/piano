@@ -11,11 +11,15 @@ else
 CFLAGS  += -O0 -ggdb -DTC_DEBUG_METRICS
 endif
 
+all: app demos
+
+# @SECTION(application)
 app: $(target)
 
 $(target): $(sources)
 	$(CC) $(CFLAGS) $(CLIBS) -o $@ $^
 
+# @SECTION(demos)
 demo_sources := $(wildcard demos/*.c)
 demo_targets := $(demo_sources:%.c=%)
 
@@ -24,6 +28,7 @@ demos: clean_demos $(demo_targets)
 $(demo_targets): %: %.c
 	$(CC) $(CFLAGS) $(CLIBS) -I./ -DAPP_NO_MAIN -o $@ $^ $(sources)
 
+# @SECTION(clean)
 clean:
 	rm -rf $(target)
 	rm -rf $(demo_targets)
@@ -31,4 +36,4 @@ clean:
 clean_demos:
 	rm -rf $(demo_targets)
 
-.PHONY: app demos clean clean_demos
+.PHONY: all app demos clean clean_demos
