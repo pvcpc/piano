@@ -143,6 +143,36 @@ struct frame
 		.alloc.grid_alloc_usable_size = GRID_SIZEOF(width_, height_), \
 	 })
 
+static inline struct frame *
+frame_clip_absolute(struct frame *frame, s32 x0, s32 y0, s32 x1, s32 y1)
+{
+	frame->clip.tlx = x0;
+	frame->clip.tly = y0;
+	frame->clip.brx = x1 - frame->width;
+	frame->clip.bry = y1 - frame->height;
+	return frame;
+}
+
+static inline struct frame *
+frame_clip_inset_absolute(struct frame *frame, s32 tlx, s32 tly, s32 brx, s32 bry)
+{
+	frame->clip.tlx = tlx;
+	frame->clip.tly = tly;
+	frame->clip.brx = -brx;
+	frame->clip.bry = -bry;
+	return frame;
+}
+
+static inline struct frame *
+frame_clip_inset(struct frame *frame, s32 dx0, s32 dy0, s32 dx1, s32 dy1)
+{
+	frame->clip.tlx += dx0;
+	frame->clip.tly += dy0;
+	frame->clip.brx -= dx1;
+	frame->clip.bry -= dy1;
+	return frame;
+}
+
 static inline struct box *
 frame_box_with_clip_accounted(struct box *dst, struct frame const *frame)
 {
