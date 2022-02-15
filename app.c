@@ -1,12 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <time.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "common.h"
 #include "terminal.h"
-#include "draw.h"
 #include "app.h"
 
 /* @SECTION(app) */
@@ -14,7 +13,23 @@
 /* @GLOBAL */
 static struct timespec g_genesis;
 
-static bool g_should_run = true;
+void
+app_setup_and_never_call_again()
+{
+	if (!t_manager_setup()) {
+		app_panic_and_die(1, "Not a TTY!");
+	}
+
+	if (clock_gettime(CLOCK_MONOTONIC, &g_genesis) < 0) {
+		app_panic_and_die(1, "Check your clock captain!");
+	}
+}
+
+void
+app_cleanup_and_never_call_again()
+{
+	t_manager_cleanup();
+}
 
 double
 app_sleep(double seconds)
@@ -53,64 +68,4 @@ app_panic_and_die(u32 code, char const *message)
 {
 	fputs(message, stderr);
 	exit(code);
-}
-
-/* @SECTION(main) */
-int
-main(void)
-{
-	/*
-	 * Setup
-	 */
-	if (!t_manager_setup()) {
-		app_panic_and_die(1, "Not a TTY!");
-	}
-
-	clock_gettime(CLOCK_MONOTONIC, &g_genesis);
-
-	/*
-	 * Done with setup, any other code in the codebase can now use
-	 * any function defined in `app.h` with complete confidence.
-	 *
-	 * Now the almighty event loop as per usual.
-	 */
-	while (g_should_run) {
-
-		struct frame frame = LOCAL_FRAME(4, 4);
-		frame_zero_grid(&frame);
-		frame_load_pattern(&frame, 0, 0,
-			"+--+\n"
-			"|  |\n"
-			"|  |\n"
-			"+--+\n"
-		);
-
-		t_clear();
-		t_cursor_pos(1, 1);
-		frame_rasterize(&frame, 0, 0);
-
-		switch (t_poll()) {
-		case T_POLL_CODE(0, 'a'):
-			t_writez("Got a");
-			break;
-		case T_POLL_CODE(0, 'b'):
-			t_writez("Got b");
-			break;
-		case T_POLL_CODE(0, 'c'):
-			t_writez("Got c");
-			break;
-		case T_POLL_CODE(0, 'd'):
-			t_writez("Got d");
-			break;
-		}
-
-		app_sleep(8e-3);
-		t_flush();
-	}
-
-	/*
-	 * Cleanup
-	 */
-	t_manager_cleanup();
-	return 0;
 }

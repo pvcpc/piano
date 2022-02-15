@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include "geometry.h"
@@ -5,18 +6,7 @@
 #include "draw.h"
 
 
-static inline u32
-direct_write_foreground_256(struct rgba color)
-{
-	return t_foreground_256(rgb_compress_256(color));
-}
-
-static inline u32
-direct_write_background_256(struct rgba color) 
-{
-	return t_background_256(rgb_compress_256(color));
-}
-
+/* @SECTION(frame) */
 struct frame *
 frame_realloc(struct frame *frame, s32 width, s32 height)
 {
@@ -62,7 +52,7 @@ frame_free(struct frame *frame)
 struct frame *
 frame_resize(struct frame *frame, s32 width, s32 height)
 {
-	if (!frame || width < 0 || height < 0) {
+	if (width < 0 || height < 0) {
 		/* @TODO verbose log */
 		return NULL;
 	}
@@ -87,11 +77,6 @@ frame_resize(struct frame *frame, s32 width, s32 height)
 u32
 frame_load_pattern(struct frame *frame, s32 x, s32 y, char const *pattern)
 {
-	if (!frame || !pattern) {
-		/* @TODO log verbosely */
-		return 0;
-	}
-
 	u32 num_emplaced = 0;
 	s32 i = x,
 		j = y;
@@ -126,27 +111,113 @@ frame_load_pattern(struct frame *frame, s32 x, s32 y, char const *pattern)
 	return num_emplaced;
 }
 
+/* @SECTION(frame_stencil) */
+u32
+frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference)
+{
+	struct box box;
+	frame_box_with_clip_accounted(&box, frame);
+
+	struct cell_mask generic_mask;
+	cell_mask_from_bits(&generic_mask, mask);
+
+	/* Number of cells that tested NOT ZERO */
+	u32 num_nz = 0;
+
+	for (s32 j = box.y0; j < box.y1; ++j) {
+		for (s32 i = box.x0; i < box.x1; ++i) {
+			struct cell *cell = frame_cell_at(frame, i, j);
+			cell->stencil = 0;
+			cell->stencil |= generic_mask.foreground & (cell->foreground - reference);
+			cell->stencil |= generic_mask.background & (cell->background - reference);
+			cell->stencil |= generic_mask.content & (cell->content - reference);
+			cell->stencil |= generic_mask.stencil & (cell->stencil - reference);
+			num_nz += cell->stencil ? 1 : 0;
+		}
+	}
+	return num_nz;
+}
+
+u32
+frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate)
+{
+	struct box box;
+	frame_box_with_clip_accounted(&box, frame);
+
+	struct cell_mask generic_mask;
+	cell_mask_from_bits(&generic_mask, mask);
+
+	/* Number of cells modified */
+	u32 num_modified = 0;
+
+	for (s32 j = box.y0; j < box.y1; ++j) {
+		for (s32 i = box.x0; i < box.x1; ++i) {
+			struct cell *cell = frame_cell_at(frame, i, j);
+			u8 const stencil_mask = !cell->stencil ? 0xff : 0;
+
+			struct cell_mask specific_mask;
+			cell_mask_broadcast_and(&specific_mask, &generic_mask, stencil_mask);
+			cell_mask_apply_binary(cell, alternate, cell, &specific_mask);
+
+			num_modified += stencil_mask & mask ? 1 : 0;
+		}
+	}
+	return num_modified;
+}
+
+u32
+frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y)
+{
+	struct box dstbox, srcbox;
+	frame_box_with_clip_accounted(&dstbox, dst);
+	frame_box_with_clip_accounted(&srcbox, src);
+
+	box_intersect_with_offset(
+		&dstbox, &srcbox,
+		&dstbox, &srcbox,
+		x, y
+	);
+
+	for (s32 j = 0; j < BOX_HEIGHT(&dstbox); ++j) {
+		for (s32 i = 0; i < BOX_WIDTH(&dstbox); ++i) {
+
+			s32 const
+				src_x = srcbox.x0 + i,
+				src_y = srcbox.y0 + j;
+
+			s32 const
+				dst_x = dstbox.x0 + i,
+				dst_y = dstbox.y0 + j;
+
+			struct cell *dstcell = frame_cell_at(dst, dst_x, dst_y);
+			struct cell *srccell = frame_cell_at(src, src_x, src_y);
+			if (!srccell->content) {
+				continue;
+			}
+
+			*dstcell = *srccell;
+		}
+	}
+
+	return BOX_WIDTH(&dstbox) * BOX_HEIGHT(&dstbox);
+}
+
 u32
 frame_rasterize(struct frame *frame, s32 x, s32 y)
 {
 	s32 term_w, term_h;
 	t_query_size(&term_w, &term_h);
 
+	struct box box;
+	frame_box_with_clip_accounted(&box, frame);
+
 	struct box dstbox, srcbox;
 	box_intersect_with_offset(
 		&dstbox, &srcbox,
 		&BOX_SCREEN(term_w, term_h),
-		&BOX(
-			frame->clip.tlx, frame->clip.tly,
-			frame->width + frame->clip.brx, 
-			frame->height + frame->clip.bry
-		),
+		&box,
 		x, y
 	);
-
-	s32 const 
-		true_w = BOX_WIDTH(&dstbox),
-		true_h = BOX_HEIGHT(&dstbox);
 
 	/* How much was actually written out to the terminal in bytes, we're
 	 * mostly interested if this remains 0. @TODO maybe make this part 
@@ -159,12 +230,12 @@ frame_rasterize(struct frame *frame, s32 x, s32 y)
 	s32 prior_x = INT16_MIN;
 	s32 prior_y = INT16_MIN;
 
-	struct rgba prior_fg = RGBA(0, 0, 0, 0);
-	struct rgba prior_bg = RGBA(0, 0, 0, 0);
+	u8 prior_fg = 0;
+	u8 prior_bg = 0;
 	throughput += t_reset();
 
-	for (s32 j = 0; j < true_h; ++j) {
-		for (s32 i = 0; i < true_w; ++i) {
+	for (s32 j = 0; j < BOX_HEIGHT(&dstbox); ++j) {
+		for (s32 i = 0; i < BOX_WIDTH(&dstbox); ++i) {
 			s32 const
 				src_x = srcbox.x0 + i,
 				src_y = srcbox.y0 + j;
@@ -206,21 +277,21 @@ frame_rasterize(struct frame *frame, s32 x, s32 y)
 			prior_y = dst_y;
 			
 			/* COLOR */
-			if (rgba_not_equal(cell->fg, prior_fg) ||
-				rgba_not_equal(cell->bg, prior_bg))
+			if (cell->foreground != prior_fg || 
+			    cell->background != prior_bg)
 			{
-				if (!cell->fg.a || !cell->bg.a) {
+				if (!cell->foreground || cell->background) {
 					throughput += t_reset();
-					prior_fg = RGBA(0, 0, 0, 0);
-					prior_bg = RGBA(0, 0, 0, 0);
+					prior_fg = 0;
+					prior_bg = 0;
 				}
-				if (rgba_not_equal(cell->fg, prior_fg)) {
-					prior_fg = cell->fg;
-					direct_write_foreground_256(cell->fg);
+				if (cell->foreground != prior_fg) {
+					prior_fg = cell->foreground;
+					t_foreground_256(cell->foreground);
 				}
-				if (rgba_not_equal(cell->bg, prior_bg)) {
-					prior_bg = cell->bg;
-					direct_write_background_256(cell->bg);
+				if (cell->background != prior_bg) {
+					prior_bg = cell->background;
+					t_background_256(cell->background);
 				}
 			}
 

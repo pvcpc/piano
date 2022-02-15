@@ -15,6 +15,17 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
+union any_int
+{
+	s8   _s8;
+	s16  _s16;
+	s32  _s32;
+
+	u8   _u8;
+	u16  _u16;
+	u32  _u32;
+};
+
 #define MAX(a, b) ((a) >= (b) ? (a) : (b))
 #define MIN(a, b) ((a) <= (b) ? (a) : (b))
 #define CLAMP(v, lo, hi) T_MIN(T_MAX(v, lo), hi)

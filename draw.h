@@ -3,71 +3,24 @@
 
 #include <string.h>
 
+#include "geometry.h"
+
 
 /* @SECTION(color) */
-struct rgba
+static inline u8
+rgb256(s32 r, s32 g, s32 b)
 {
-	u8 r, g, b, a;
-};
-
-struct rgba_mask
-{
-	u8 r, g, b, a;
-};
-
-#define RGBA(pr, pg, pb, pa) \
-	((struct rgba){ pr, pg, pb, pa })
-#define RGB(pr, pg, pb) \
-	RGBA(pr, pg, pb, 255)
-
-#define RGBA_TO_U32(rgba) \
-	(((rgba.r & 0xff) << 24) | \
-	 ((rgba.g & 0xff) << 16) | \
-	 ((rgba.b & 0xff) <<  8) | \
-	 ((rgba.a & 0xff)      ))
-
-static inline s32
-rgba_compare(struct rgba lhs, struct rgba rhs)
-{
-	return (s32) (RGBA_TO_U32(lhs) - RGBA_TO_U32(rhs));
-}
-
-static inline bool
-rgba_not_equal(struct rgba lhs, struct rgba rhs)
-{
-	return rgba_compare(lhs, rhs);
+	s32 const
+		idx_r = MAX(0, ((r + 5) / 40) - 1),
+		idx_g = MAX(0, ((g + 5) / 40) - 1),
+		idx_b = MAX(0, ((b + 5) / 40) - 1);
+	return (36 * idx_r) + (6 * idx_g) + (idx_b) + (16);
 }
 
 static inline u8
-rgb_compress_cube_256(struct rgba color)
+gray256(s32 scale)
 {
-	static s32 const l_point_table [6] = {
-		0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff,
-	};
-	s32 const components [3] = {
-		color.r, color.g, color.b,
-	};
-	s32 cube [3];
-
-	/* @SPEED(max): check compiler output for unrolling to make sure */
-	for (int i = 0; i < 3; ++i) {
-		int close_diff = 255;
-		for (int j = 0; j < 6; ++j) {
-			int diff = ABS(l_point_table[j] - components[i]);
-			if (diff < close_diff) {
-				cube[i] = j;
-				close_diff = diff;
-			}
-		}
-	}
-	return (16) + (36 * cube[0]) + (6 * cube[1]) + (cube[2]);
-}
-
-static inline u8
-rgb_compress_gray_256(struct rgba color)
-{
-	int const scale = (color.r + color.g + color.b) / 3;
-	int const index = (scale - 0x08) / 10;
+	s32 const index = (scale - 0x08) / 10;
 
 	/* because grayscale doesn't end with 0xffffff, we have to do this
 	 * stupid magic to wrap the 256 to a 231 which happens to be the
@@ -75,36 +28,77 @@ rgb_compress_gray_256(struct rgba color)
 	return 232 + (index % 24) - (index / 24);
 }
 
-static inline u8
-rgb_compress_256(struct rgba color)
-{
-	/* @SPEED(max): branch */
-	if (color.r == color.g && color.g == color.b) {
-		return rgb_compress_gray_256(color);
-	}
-	return rgb_compress_cube_256(color);
-}
-
 /* @SECTION(cell) */
+#define CELL_FOREGROUND_BIT 0x01
+#define CELL_BACKGROUND_BIT 0x02
+#define CELL_CONTENT_BIT    0x04
+#define CELL_STENCIL_BIT    0x08
+
 struct cell
 {
-	struct rgba fg;
-	struct rgba bg;
-	char content;
+	u8 foreground;
+	u8 background;
+	s8 content;
 	s8 stencil;
 };
+#define CELL_FOREGROUND(foreground_) \
+	((struct cell){.foreground = foreground_,})
+#define CELL_BACKGROUND(background_) \
+	((struct cell){.background = background_,})
+#define CELL_CONTENT(content_) \
+	((struct cell){.content = content_,})
+#define CELL_STENCIL(stencil_) \
+	((struct cell){.stencil = stencil_,})
+
 #define LOCAL_GRID(width, height) \
-	((struct cell [(width)*(height)]){{{0}}})
+	((struct cell [(width)*(height)]){{0}})
 #define GRID_SIZEOF(width, height) \
 	(sizeof(struct cell) * (width) * (height))
 
 struct cell_mask
 {
-	struct rgba_mask fg;
-	struct rgba_mask bg;
+	u8 foreground;
+	u8 background;
 	u8 content;
 	u8 stencil;
 };
+
+static inline struct cell_mask *
+cell_mask_from_bits(struct cell_mask *dst, u8 mask)
+{
+	dst->foreground = mask & CELL_FOREGROUND_BIT ? 0xff : 0;
+	dst->background = mask & CELL_BACKGROUND_BIT ? 0xff : 0;
+	dst->content    = mask & CELL_CONTENT_BIT    ? 0xff : 0;
+	dst->stencil    = mask & CELL_STENCIL_BIT    ? 0xff : 0;
+	return dst;
+}
+
+static inline struct cell_mask *
+cell_mask_broadcast_and(
+	struct cell_mask *dst, 
+	struct cell_mask const *src, 
+	u8 mask
+) {
+	dst->foreground = mask & src->foreground;
+	dst->background = mask & src->background;
+	dst->content    = mask & src->content;
+	dst->stencil    = mask & src->stencil;
+	return dst;
+}
+
+static inline struct cell *
+cell_mask_apply_binary(
+	struct cell *dst, 
+	struct cell const *prefer, 
+	struct cell const *defer, 
+	struct cell_mask const *mask
+) {
+	dst->foreground = (mask->foreground & prefer->foreground) | (~mask->foreground & defer->foreground);
+	dst->background = (mask->background & prefer->background) | (~mask->background & defer->background);
+	dst->content    = (mask->content & prefer->content)       | (~mask->content & defer->content);
+	dst->stencil    = (mask->stencil & prefer->stencil)       | (~mask->stencil & defer->stencil);
+	return dst;
+}
 
 /* @SECTION(frame) */
 struct clip
@@ -140,6 +134,19 @@ struct frame
 		.alloc.grid_alloc_usable_size = GRID_SIZEOF(width_, height_), \
 	 })
 
+static inline struct box *
+frame_box_with_clip_accounted(struct box *dst, struct frame const *frame)
+{
+	return box_intersect(dst,
+		&BOX_SCREEN(frame->width, frame->height),
+		&BOX(
+			frame->clip.tlx, frame->clip.tly,
+			frame->clip.brx + frame->width,
+			frame->clip.bry + frame->height
+		)
+	);
+}
+
 /**
  * Identical to `memset(frame, 0, sizeof(struct frame))` for convenience.
  *
@@ -169,6 +176,22 @@ frame_zero_grid(struct frame *frame)
 {
 	if (frame && frame->grid) {
 		memset(frame->grid, 0, frame->alloc.grid_alloc_usable_size);
+	}
+	return frame;
+}
+
+/**
+ * Convenience function to clear the stencil byte.
+ *
+ * @param frame The frame whose stencil bytes to clear.
+ *
+ * @return The frame.
+ */
+static inline struct frame *
+frame_zero_stencil(struct frame *frame)
+{
+	for (u32 i = 0; i < (frame->width * frame->height); ++i) {
+		frame->grid[i].stencil = 0;
 	}
 	return frame;
 }
@@ -207,7 +230,7 @@ frame_realloc(struct frame *frame, s32 width, s32 height);
 /**
  * Free automatically managed frame.
  *
- * @param frame The frame to free (can be NULL).
+ * @param frame The frame to free (NULL is OK).
  */
 void
 frame_free(struct frame *frame);
@@ -237,11 +260,41 @@ frame_resize(struct frame *frame, s32 width, s32 height);
  * @param pattern The pattern definition string.
  *
  * @return The number of characters emplaced (excluding control character
- * such as \n, \r, \v, etc.), or 0 on failure. This will also log
- * the cause of the failure to the application logger.
+ * such as \n, \r, \v, etc.).
  */
 u32
 frame_load_pattern(struct frame *frame, s32 x, s32 y, char const *pattern);
+
+/* @SECTION(frame_draw) */
+/**
+ * Analogous to assembly CMP instruction, that is, performs a subtraction
+ * between the given mask element and reference to set the stencil value.
+ * Multiple mask bits are probablly not desired as the stencil is OR'd
+ * with successive masked elements.
+ *
+ * @param frame The frame on which to perform this comparison.
+ * @param mask The mask bits selecting the elements to compare.
+ * @param reference The reference value to compare against.
+ *
+ * @return The number of elements comparing to NOT ZERO.
+ */
+u32
+frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference);
+
+/**
+ * Performs a set operation on all cells whose stencil is 0. Eligible
+ * cells have their elements replaced by the masked elements in the
+ * `alternate` cell.
+ *
+ * @param frame The frame whose grid to modify.
+ * @param mask The mask selecting which elemnets of `alternate` to use.
+ * @param alternate The replacement values for elible cells.
+ */
+u32
+frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate);
+
+u32
+frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y);
 
 /**
  * Rasterizes the given frame to the master terminal at the given 
