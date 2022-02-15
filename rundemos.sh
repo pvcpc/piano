@@ -1,7 +1,7 @@
 #!/bin/sh
 
 PRE_SLEEP=${1:-3}
-POST_SLEEP=${2:-3}
+POST_SLEEP=${2:-$PRE_SLEEP}
 DEMOS=$(find demos -type f -executable)
 
 NUM_DEMO=0
