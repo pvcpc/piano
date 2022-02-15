@@ -9,27 +9,12 @@
 #include "app.h"
 
 /* @SECTION(app) */
+#define APP__NANO 1000000000
 
 /* @GLOBAL */
 static struct timespec g_genesis;
 
-void
-app_setup_and_never_call_again()
-{
-	if (!t_manager_setup()) {
-		app_panic_and_die(1, "Not a TTY!");
-	}
-
-	if (clock_gettime(CLOCK_MONOTONIC, &g_genesis) < 0) {
-		app_panic_and_die(1, "Check your clock captain!");
-	}
-}
-
-void
-app_cleanup_and_never_call_again()
-{
-	t_manager_cleanup();
-}
+static bool            g_should_run = true;
 
 double
 app_sleep(double seconds)
@@ -68,4 +53,52 @@ app_panic_and_die(u32 code, char const *message)
 {
 	fputs(message, stderr);
 	exit(code);
+}
+
+#ifdef APP_DEMO
+extern int
+demo();
+#endif
+
+int
+main(void)
+{
+	/* 
+	 * Setup
+	 */
+	if (!t_manager_setup()) {
+		app_panic_and_die(1, "Not a TTY!");
+	}
+
+	if (clock_gettime(CLOCK_MONOTONIC, &g_genesis) < 0) {
+		app_panic_and_die(1, "Check your clock captain!");
+	}
+
+	/*
+	 * Do the cool stuff
+	 */
+#ifdef APP_DEMO
+	demo();
+#else
+	while (g_should_run) {
+		switch (t_poll()) {
+		case T_POLL_CODE(0, 'a'):
+			t_writez("Got a");
+			break;
+		case T_POLL_CODE(0, 'b'):
+			t_writez("Got b");
+			break;
+		case T_POLL_CODE(0, 'c'):
+			t_writez("Got c");
+			break;
+		case T_POLL_CODE(0, 'd'):
+			t_writez("Got d");
+			break;
+		}
+		t_flush();
+	}
+#endif
+
+	t_manager_cleanup();
+	return 0;
 }

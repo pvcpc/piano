@@ -167,6 +167,33 @@ frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate)
 }
 
 u32
+frame_stencil_setne(struct frame *frame, u8 mask, struct cell const *alternate)
+{
+	struct box box;
+	frame_box_with_clip_accounted(&box, frame);
+
+	struct cell_mask generic_mask;
+	cell_mask_from_bits(&generic_mask, mask);
+
+	/* Number of cells modified */
+	u32 num_modified = 0;
+
+	for (s32 j = box.y0; j < box.y1; ++j) {
+		for (s32 i = box.x0; i < box.x1; ++i) {
+			struct cell *cell = frame_cell_at(frame, i, j);
+			u8 const stencil_mask = cell->stencil ? 0xff : 0;
+
+			struct cell_mask specific_mask;
+			cell_mask_broadcast_and(&specific_mask, &generic_mask, stencil_mask);
+			cell_mask_apply_binary(cell, alternate, cell, &specific_mask);
+
+			num_modified += stencil_mask & mask ? 1 : 0;
+		}
+	}
+	return num_modified;
+}
+
+u32
 frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y, s8 stencil)
 {
 	struct box dstbox, srcbox;

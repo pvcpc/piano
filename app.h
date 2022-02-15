@@ -3,13 +3,6 @@
 
 #include "common.h"
 
-#define APP__NANO 1000000000
-
-void
-app_setup_and_never_call_again();
-
-void
-app_cleanup_and_never_call_again();
 
 double
 app_sleep(double seconds);

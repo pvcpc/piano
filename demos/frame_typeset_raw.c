@@ -3,10 +3,8 @@
 #include <app.h>
 
 int
-main()
+demo()
 {
-	app_setup_and_never_call_again();
-
 	s32 term_w, term_h;
 	t_query_size(&term_w, &term_h);
 
@@ -37,7 +35,5 @@ main()
 	t_flush();
 
 	t_cursor_pos(0, 10);
-
-	app_cleanup_and_never_call_again();
 	return 0;
 }

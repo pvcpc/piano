@@ -43,8 +43,14 @@ struct cell
 };
 #define CELL_FOREGROUND(foreground_) \
 	((struct cell){.foreground = foreground_,})
+#define CELL_FOREGROUND_C(fr_, fg_, fb_) \
+	((struct cell){.foreground = rgb256(fr_, fg_, fb_),})
+
 #define CELL_BACKGROUND(background_) \
 	((struct cell){.background = background_,})
+#define CELL_BACKGROUND_C(fr_, fg_, fb_) \
+	((struct cell){.background = rgb256(fr_, fg_, fb_),})
+
 #define CELL_CONTENT(content_) \
 	((struct cell){.content = content_,})
 #define CELL_STENCIL(stencil_) \
@@ -303,7 +309,18 @@ frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference);
  */
 u32
 frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate);
-#define frame_stencil_setnz(frame, mask, alternate) frame_stencil_seteq(frame, mask, aslternate)
+#define frame_stencil_setz(frame, mask, alternate) frame_stencil_seteq(frame, mask, aslternate)
+
+/**
+ * Performs the inverse operation of `frame_stencil_seteq`.
+ *
+ * @param frame The frame whose grid to modify.
+ * @param mask The mask selecting which elemnets of `alternate` to use.
+ * @param alternate The replacement values for elible cells.
+ */
+u32
+frame_stencil_setne(struct frame *frame, u8 mask, struct cell const *alternate);
+#define frame_stencil_setnz(frame, mask, alternate) frame_stencil_setne(frame, mask, alternate)
 
 /**
  * Direct cell copy from `src` to `dst` at the specified offset (unless
@@ -319,7 +336,6 @@ frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate);
  */
 u32
 frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y, s8 stencil);
-
 
 u32
 frame_typeset_raw(struct frame *dst, s32 x, s32 y, s8 stencil, char const *message);

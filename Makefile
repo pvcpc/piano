@@ -26,7 +26,7 @@ demo_targets := $(demo_sources:%.c=%)
 demos: clean_demos $(demo_targets)
 
 $(demo_targets): %: %.c
-	$(CC) $(CFLAGS) $(CLIBS) -I./ -DAPP_NO_MAIN -o $@ $^ $(sources)
+	$(CC) $(CFLAGS) $(CLIBS) -I./ -DAPP_DEMO -o $@ $^ $(sources)
 
 # @SECTION(clean)
 clean:
