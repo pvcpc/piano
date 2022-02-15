@@ -178,6 +178,8 @@ frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y)
 		x, y
 	);
 
+	u32 num_copied = 0;
+
 	for (s32 j = 0; j < BOX_HEIGHT(&dstbox); ++j) {
 		for (s32 i = 0; i < BOX_WIDTH(&dstbox); ++i) {
 
@@ -196,10 +198,11 @@ frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y)
 			}
 
 			*dstcell = *srccell;
+			++num_copied;
 		}
 	}
 
-	return BOX_WIDTH(&dstbox) * BOX_HEIGHT(&dstbox);
+	return num_copied;
 }
 
 u32

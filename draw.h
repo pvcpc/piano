@@ -293,6 +293,17 @@ frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference);
 u32
 frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate);
 
+/**
+ * Direct cell copy from `src` to `dst` at the specified offset (unless
+ * a `src` cell has 0 for content.)
+ *
+ * @param dst The frame to write to.
+ * @param src The frame to source cells from.
+ * @param x The desired src column offset.
+ * @param y The desired src row offset.
+ *
+ * @param The number of `dst` cells affected.
+ */
 u32
 frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y);
 
