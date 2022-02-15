@@ -26,5 +26,6 @@ $(demo_targets): %: %.c
 
 clean:
 	rm $(target)
+	rm $(demo_targets)
 
 .PHONY: app demos clean
