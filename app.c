@@ -342,7 +342,7 @@ app__init_services()
 		app_panic_and_die(1, "Check your clock captain!");
 	}
 
-	g_journal_sys.memory_overhead_threshold = KILO(64);
+	// g_journal_sys.memory_overhead_threshold = KILO(64);
 }
 
 static void

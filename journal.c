@@ -41,6 +41,8 @@ journal_append_record(struct journal *journal, u32 content_reserve_size)
 		return NULL;
 	}
 
+	journal->memory_overhead_current += approx_size;
+
 	record->_record_size = record_size;
 	record->_approx_size = approx_size;
 
@@ -67,8 +69,10 @@ journal_append_record(struct journal *journal, u32 content_reserve_size)
 		prev->next = record;
 	}
 
-	/*  */
-	journal__fit_memory_overhead(journal);
+	/* @LEAK figure out a nice way to clear out the journal sometime.
+	 *
+	 * journal__fit_memory_overhead(journal);
+	 */
 
 	return record;
 }
