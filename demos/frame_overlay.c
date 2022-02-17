@@ -38,15 +38,16 @@ demo()
 	frame_stencil_seteq(&frame_b, CELL_CONTENT_BIT, &CELL_CONTENT(0));
 
 	/* Demonstrate that overlays adhere to clipping */
-	struct clip clip = frame_a.clip;
-
-	frame_clip_inset(&frame_a, 3, 3, 0, 0);
+	struct inset *clip = &frame_a.clip;
+	clip->tlx = 3;
+	clip->tly = 3;
 
 	frame_overlay(&frame_a, &frame_b, 2, 2, 1);
 	frame_stencil_cmp(&frame_a, CELL_STENCIL_BIT, 1);
 	frame_stencil_seteq(&frame_a, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_C(255, 0, 0));
 
-	frame_a.clip = clip;
+	clip->tlx = 0;
+	clip->tly = 0;
 
 	frame_rasterize(&frame_a, 0, 0);
 	return 0;

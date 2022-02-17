@@ -117,7 +117,7 @@ u32
 frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference)
 {
 	struct box box;
-	frame_box_with_clip_accounted(&box, frame);
+	frame_compute_clip_box(&box, frame);
 
 	struct cell_mask generic_mask;
 	cell_mask_from_bits(&generic_mask, mask);
@@ -143,7 +143,7 @@ u32
 frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate)
 {
 	struct box box;
-	frame_box_with_clip_accounted(&box, frame);
+	frame_compute_clip_box(&box, frame);
 
 	struct cell_mask generic_mask;
 	cell_mask_from_bits(&generic_mask, mask);
@@ -170,7 +170,7 @@ u32
 frame_stencil_setne(struct frame *frame, u8 mask, struct cell const *alternate)
 {
 	struct box box;
-	frame_box_with_clip_accounted(&box, frame);
+	frame_compute_clip_box(&box, frame);
 
 	struct cell_mask generic_mask;
 	cell_mask_from_bits(&generic_mask, mask);
@@ -196,39 +196,39 @@ frame_stencil_setne(struct frame *frame, u8 mask, struct cell const *alternate)
 u32
 frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y, s8 stencil)
 {
-	struct box dstbox, srcbox;
-	frame_box_with_clip_accounted(&dstbox, dst);
-	frame_box_with_clip_accounted(&srcbox, src);
+	struct box dst_box, src_box;
+	frame_compute_clip_box(&dst_box, dst);
+	frame_compute_clip_box(&src_box, src);
 
 	box_intersect_with_offset(
-		&dstbox, &srcbox,
-		&dstbox, &srcbox,
+		&dst_box, &src_box,
+		&dst_box, &src_box,
 		x, y
 	);
 
 	u32 num_copied = 0;
 
-	for (s32 j = 0; j < BOX_HEIGHT(&dstbox); ++j) {
-		for (s32 i = 0; i < BOX_WIDTH(&dstbox); ++i) {
+	for (s32 j = 0; j < BOX_HEIGHT(&dst_box); ++j) {
+		for (s32 i = 0; i < BOX_WIDTH(&dst_box); ++i) {
 
 			s32 const
-				src_x = srcbox.x0 + i,
-				src_y = srcbox.y0 + j;
+				src_x = src_box.x0 + i,
+				src_y = src_box.y0 + j;
 
 			s32 const
-				dst_x = dstbox.x0 + i,
-				dst_y = dstbox.y0 + j;
+				dst_x = dst_box.x0 + i,
+				dst_y = dst_box.y0 + j;
 
-			struct cell *dstcell = frame_cell_at(dst, dst_x, dst_y);
-			struct cell *srccell = frame_cell_at(src, src_x, src_y);
-			if (!srccell->content) {
+			struct cell *dst_cell = frame_cell_at(dst, dst_x, dst_y);
+			struct cell *src_cell = frame_cell_at(src, src_x, src_y);
+			if (!src_cell->content) {
 				continue;
 			}
 
-			dstcell->foreground = srccell->foreground;
-			dstcell->background = srccell->background;
-			dstcell->content = srccell->content;
-			dstcell->stencil = stencil;
+			dst_cell->foreground = src_cell->foreground;
+			dst_cell->background = src_cell->background;
+			dst_cell->content = src_cell->content;
+			dst_cell->stencil = stencil;
 			++num_copied;
 		}
 	}
@@ -240,7 +240,7 @@ u32
 frame_typeset_raw(struct frame *dst, s32 x, s32 y, s8 stencil, char const *message)
 {
 	struct box box;
-	frame_box_with_clip_accounted(&box, dst);
+	frame_compute_clip_box(&box, dst);
 
 	if (x >= box.x1 || y >= box.y1) {
 		return 0;
@@ -290,7 +290,7 @@ frame_rasterize(struct frame *frame, s32 x, s32 y)
 	t_query_size(&term_w, &term_h);
 
 	struct box box;
-	frame_box_with_clip_accounted(&box, frame);
+	frame_compute_clip_box(&box, frame);
 
 	struct box dstbox, srcbox;
 	box_intersect_with_offset(

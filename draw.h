@@ -43,13 +43,17 @@ struct cell
 };
 #define CELL_FOREGROUND(foreground_) \
 	((struct cell){.foreground = foreground_,})
-#define CELL_FOREGROUND_C(fr_, fg_, fb_) \
+#define CELL_FOREGROUND_RGB(fr_, fg_, fb_) \
 	((struct cell){.foreground = rgb256(fr_, fg_, fb_),})
+#define CELL_FOREGROUND_GRAY(scale_) \
+	((struct cell){.foreground = gray256(scale_),})
 
 #define CELL_BACKGROUND(background_) \
 	((struct cell){.background = background_,})
-#define CELL_BACKGROUND_C(fr_, fg_, fb_) \
+#define CELL_BACKGROUND_RGB(fr_, fg_, fb_) \
 	((struct cell){.background = rgb256(fr_, fg_, fb_),})
+#define CELL_BACKGROUND_GRAY(scale_) \
+	((struct cell){.background = gray256(scale_),})
 
 #define CELL_CONTENT(content_) \
 	((struct cell){.content = content_,})
@@ -107,7 +111,7 @@ cell_mask_apply_binary(
 }
 
 /* @SECTION(frame) */
-struct clip
+struct clip 
 {
 	s32 tlx, tly; /* top left (x, y) offsets */
 	s32 brx, bry; /* bottom right (x, y) offsets */
@@ -119,9 +123,6 @@ struct frame
 	s32           width;
 	s32           height;
 
-	/* Unless otherwise noted in the documentation, all routines below
-	 * adhere to he setting defined by this clip (or any frame context
-	 * for that matter.) */
 	struct clip   clip;
 
 	/* if used with frame_realloc, client shouldn't touch, otherwise,
@@ -143,38 +144,30 @@ struct frame
 		.alloc.grid_alloc_usable_size = GRID_SIZEOF(width_, height_), \
 	 })
 
-static inline struct frame *
+static inline struct clip
 frame_clip_absolute(struct frame *frame, s32 x0, s32 y0, s32 x1, s32 y1)
 {
+	struct clip save = frame->clip;
 	frame->clip.tlx = x0;
 	frame->clip.tly = y0;
 	frame->clip.brx = x1 - frame->width;
 	frame->clip.bry = y1 - frame->height;
-	return frame;
+	return save;
 }
 
-static inline struct frame *
-frame_clip_inset_absolute(struct frame *frame, s32 tlx, s32 tly, s32 brx, s32 bry)
-{
-	frame->clip.tlx = tlx;
-	frame->clip.tly = tly;
-	frame->clip.brx = -brx;
-	frame->clip.bry = -bry;
-	return frame;
-}
-
-static inline struct frame *
+static inline struct clip
 frame_clip_inset(struct frame *frame, s32 dx0, s32 dy0, s32 dx1, s32 dy1)
 {
+	struct clip save = frame->clip;
 	frame->clip.tlx += dx0;
 	frame->clip.tly += dy0;
 	frame->clip.brx -= dx1;
 	frame->clip.bry -= dy1;
-	return frame;
+	return save;
 }
 
 static inline struct box *
-frame_box_with_clip_accounted(struct box *dst, struct frame const *frame)
+frame_compute_clip_box(struct box *dst, struct frame *frame)
 {
 	return box_intersect(dst,
 		&BOX_SCREEN(frame->width, frame->height),
@@ -298,8 +291,8 @@ frame_resize(struct frame *frame, s32 width, s32 height);
  * Parses the given pattern and emplace it into the given frame at
  * the desired location.
  *
- * This routine DOES NOT adhere to the `frame->clip` setting. To adhere
- * to the clip, use the `frame_typset*` family of functions instead.
+ * This routine DOES NOT adhere to either the `clip` or `view`
+ * setting. Use `frame_type*` family of functions for this.
  *
  * @param frame The frame where to emplace the pattern.
  * @param x The desired column.

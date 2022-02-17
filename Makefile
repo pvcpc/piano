@@ -11,8 +11,6 @@ else
 CFLAGS  += -O0 -ggdb -DTC_DEBUG_METRICS
 endif
 
-all: app demos
-
 # @SECTION(application)
 app: $(target)
 

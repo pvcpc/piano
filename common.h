@@ -35,5 +35,24 @@ union any_int
 
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*arr))
 
+/**
+ * Mathematically correct quotient/remainder (that is, the remainder
+ * is always positive.)
+ *
+ * @param q The quotient destination.
+ * @param n The numerator.
+ * @param d The denominator.
+ *
+ * @return The remainder.
+ */
+static inline s32
+qdiv(s32 *q, s32 n, s32 d)
+{
+	*q = n / d;
+	s32 r = n % d;
+	s32 k = d < 0 ? 1 : -1;
+	*q += r < 0 ? k : 0;
+	return n - (*q)*d;
+}
 
 #endif /* INCLUDE__COMMON_H */

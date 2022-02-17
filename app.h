@@ -3,12 +3,12 @@
 
 #include "common.h"
 
-
+/* @SECTION(services) */
 double
 app_sleep(double seconds);
 
 double
-app_clock();
+app_uptime();
 
 void
 app_panic_and_die(u32 code, char const *message);

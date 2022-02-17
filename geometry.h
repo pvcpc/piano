@@ -23,6 +23,18 @@ struct box
 	ABS((box_ptr)->y1 - (box_ptr)->y0)
 
 static inline struct box *
+box_origin_clamp(
+	struct box *dst,
+	struct box const *src
+) {
+	dst->x0 = src->x0;
+	dst->y0 = src->y0;
+	dst->x1 = MAX(src->x0, src->x1);
+	dst->y1 = MAX(src->y0, src->y1);
+	return dst;
+}
+
+static inline struct box *
 box_translate(
 	struct box *dst,
 	struct box const *src,
