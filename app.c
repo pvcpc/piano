@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -5,6 +6,7 @@
 #include <time.h>
 
 #include "common.h"
+#include "journal.h"
 #include "terminal.h"
 #include "draw.h"
 #include "app.h"
@@ -321,16 +323,96 @@ app__roll_position_cursor(struct frame *frame)
 	t_cursor_pos(x+1, y+1);
 }
 
-/* @SECTION(app) */
+/* @SECTION(services) */
 #define APP__NANO 1000000000
-#define APP__DRAW_DELTA 8e-3
 
 /* @GLOBAL */
 static struct timespec g_genesis;
 
-static bool            g_should_run       = true;
-static double          g_time_draw_last;
+static struct journal  g_journal_sys;
 
+static void
+app__init_services()
+{
+	if (!t_manager_setup()) {
+		app_panic_and_die(1, "Not a TTY!");
+	}
+
+	if (clock_gettime(CLOCK_MONOTONIC, &g_genesis) < 0) {
+		app_panic_and_die(1, "Check your clock captain!");
+	}
+
+	g_journal_sys.memory_overhead_threshold = KILO(64);
+}
+
+static void
+app__destroy_services()
+{
+	t_manager_cleanup();
+}
+
+static struct journal_record *
+app__log_append_record(enum journal_level level, char const *restrict format_message, va_list ap)
+{
+	/* exhaust a arglist copy to get the required string size for the
+	 * record. */
+	va_list ap_tmp;
+	va_copy(ap_tmp, ap);
+
+	s32 n = vsnprintf(NULL, 0, format_message, ap_tmp);
+	if (n < 0) {
+		return NULL;
+	}
+	++n; /* make room for 0 terminator. */
+
+	/* All good, allocate the record and print into it again. */
+	struct journal_record *record = journal_append_record(&g_journal_sys, n);
+	if (!record) {
+		return NULL; /* @TODO should we panic here, like we're kinda screwed ? */
+	}
+	vsnprintf(record->content, n, format_message, ap);
+
+	record->time = app_uptime();
+	record->level = level;
+
+	return record;
+}
+
+void
+app_log_info(char const *restrict format_message, ...)
+{
+	va_list ap;
+	va_start(ap, format_message);
+	app__log_append_record(JOURNAL_LEVEL_INFO, format_message, ap);
+}
+
+void
+app_log_warn(char const *restrict format_message, ...)
+{
+	va_list ap;
+	va_start(ap, format_message);
+	app__log_append_record(JOURNAL_LEVEL_WARN, format_message, ap);
+}
+
+void
+app_log_error(char const *restrict format_message, ...)
+{
+	va_list ap;
+	va_start(ap, format_message);
+	app__log_append_record(JOURNAL_LEVEL_ERROR, format_message, ap);
+}
+
+bool
+_app_dump_system_journal(s32 fd)
+{
+	struct journal_record *now = g_journal_sys._head;
+	while (now) {
+		dprintf(fd, "[%6d][%6.4f][%s] %s\n", 
+			now->serial, now->time, journal_level_string(now->level), now->content
+		);
+		now = now->next;
+	}
+}
 
 double
 app_sleep(double seconds)
@@ -371,6 +453,15 @@ app_panic_and_die(u32 code, char const *message)
 	exit(code);
 }
 
+
+/* @SECTION(app) */
+#define APP__DRAW_DELTA 8e-3
+
+/* @GLOBAL  */
+static bool            g_should_run       = true;
+static double          g_time_draw_last;
+
+
 #ifndef APP_DEMO
 int
 main(void)
@@ -378,11 +469,7 @@ main(void)
 	/* 
 	 * Setup
 	 */
-	if (!t_manager_setup()) {
-		app_panic_and_die(1, "Not a TTY!");
-	}
-
-	clock_gettime(CLOCK_MONOTONIC, &g_genesis);
+	app__init_services();
 	
 	g_time_draw_last = app_uptime();
 
@@ -473,8 +560,8 @@ main(void)
 	 */
 	frame_free(&frame);
 
+	app__destroy_services();
 
-	t_manager_cleanup();
 	return 0;
 }
 #endif /* ifndef APP_DEMO */
@@ -491,24 +578,11 @@ main()
 	SUPPRESS(g_should_run);
 	SUPPRESS(g_time_draw_last);
 
-	/* 
-	 * Common initialization demo's will need (copied from top portion
-	 * of the actual application but whatever.)
-	 */
-	if (!t_manager_setup()) {
-		app_panic_and_die(1, "Not a TTY!");
-	}
-
-	if (clock_gettime(CLOCK_MONOTONIC, &g_genesis) < 0) {
-		app_panic_and_die(1, "Check your clock captain!");
-	}
+	app__init_services();
 
 	int const demo_status = demo();
 
-	/*
-	 * Cleanup.
-	 */
-	t_manager_cleanup();
+	app__destroy_services();
 
 	return demo_status;
 }

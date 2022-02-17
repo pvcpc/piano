@@ -35,6 +35,9 @@ union any_int
 
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*arr))
 
+#define KILO(n) ((n) << 10)
+#define MEGA(n) ((n) << 20)
+
 /**
  * Mathematically correct quotient/remainder (that is, the remainder
  * is always positive.)

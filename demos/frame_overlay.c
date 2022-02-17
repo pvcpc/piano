@@ -32,19 +32,19 @@ demo()
 
 	frame_stencil_cmp(&frame_a, CELL_CONTENT_BIT, ' ');
 	frame_stencil_seteq(&frame_a, CELL_CONTENT_BIT, &CELL_CONTENT(0));
-	frame_stencil_setne(&frame_a, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_C(0, 0, 255));
+	frame_stencil_setne(&frame_a, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_RGB(0, 0, 255));
 
 	frame_stencil_cmp(&frame_b, CELL_CONTENT_BIT, ' ');
 	frame_stencil_seteq(&frame_b, CELL_CONTENT_BIT, &CELL_CONTENT(0));
 
 	/* Demonstrate that overlays adhere to clipping */
-	struct inset *clip = &frame_a.clip;
+	struct clip *clip = &frame_a.clip;
 	clip->tlx = 3;
 	clip->tly = 3;
 
 	frame_overlay(&frame_a, &frame_b, 2, 2, 1);
 	frame_stencil_cmp(&frame_a, CELL_STENCIL_BIT, 1);
-	frame_stencil_seteq(&frame_a, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_C(255, 0, 0));
+	frame_stencil_seteq(&frame_a, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_RGB(255, 0, 0));
 
 	clip->tlx = 0;
 	clip->tly = 0;

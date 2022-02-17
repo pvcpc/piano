@@ -18,17 +18,17 @@ demo()
 
 	/* blue color */
 	frame_stencil_cmp(&frame, CELL_CONTENT_BIT, 'b');
-	frame_stencil_seteq(&frame, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_C(0, 0, 255));
+	frame_stencil_seteq(&frame, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_RGB(0, 0, 255));
 	frame_stencil_seteq(&frame, CELL_CONTENT_BIT, &CELL_CONTENT(' '));
 
 	/* red color */
 	frame_stencil_cmp(&frame, CELL_CONTENT_BIT, 'r');
-	frame_stencil_seteq(&frame, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_C(255, 0, 0));
+	frame_stencil_seteq(&frame, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_RGB(255, 0, 0));
 	frame_stencil_seteq(&frame, CELL_CONTENT_BIT, &CELL_CONTENT(' '));
 
 	/* white color */
 	frame_stencil_cmp(&frame, CELL_CONTENT_BIT, 'w');
-	frame_stencil_seteq(&frame, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_C(255, 255, 255));
+	frame_stencil_seteq(&frame, CELL_BACKGROUND_BIT, &CELL_BACKGROUND_RGB(255, 255, 255));
 	frame_stencil_seteq(&frame, CELL_CONTENT_BIT, &CELL_CONTENT(' '));
 
 	t_reset();

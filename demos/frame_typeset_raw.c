@@ -11,7 +11,7 @@ demo()
 	struct frame frame;
 	frame_alloc(&frame, term_w, term_h);
 
-	struct inset *clip = &frame.clip;
+	struct clip *clip = &frame.clip;
 	frame_clip_absolute(&frame, 2, 2, 8, 8);
 
 	frame_typeset_raw(&frame, 0, 0, 1, "Hello, world!");
