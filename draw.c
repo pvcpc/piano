@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 
 #include "geometry.h"
 #include "terminal.h"
@@ -45,7 +46,7 @@ void
 frame_free(struct frame *frame)
 {
 	if (frame) {
-		free(frame);
+		free(frame->grid);
 		frame_zero_struct(frame);
 	}
 }
@@ -280,6 +281,129 @@ frame_typeset_raw(struct frame *dst, s32 x, s32 y, s8 stencil, char const *messa
 		}
 		++message;
 	}
+	return num_written;
+}
+
+static inline u32
+frame__typeset_flrr_line_helper(
+	struct frame *dst, 
+	struct box const *cbox, 
+	s32 x, 
+	s32 y, 
+	s8 stencil, 
+	char *base, 
+	char **cursor
+) {
+	if (cbox->y0 >= cbox->y1) { /* no point */
+		return 0;
+	}
+
+	u32 num_written = 0;
+
+	char *save_base = base;
+
+	while  (base != *cursor) {
+		if ( (cbox->x0 <= x && x < cbox->x1) &&
+			 (cbox->y0 <= y && y < cbox->y1) )
+		{
+			struct cell *cell = frame_cell_at(dst, x, y);
+			cell->content = *base++;
+			cell->stencil = stencil;
+			++num_written;
+		}
+		++x;
+	}
+	
+	*cursor = save_base;
+
+	return num_written;
+}
+
+u32
+frame_typeset_flrr(struct frame *dst, struct box *out_bb, s32 x, s32 y, s32 width, s8 stencil, char const *message)
+{
+	struct box box;
+	frame_compute_clip_box(&box, dst);
+
+	if (BOX_WIDTH(&box) <= 1 || 4096 <= BOX_WIDTH(&box)) {
+		/* @TODO log error? we need at least two spaces to typeset */
+		return 0;
+	}
+
+	u32 num_written = 0;
+	u32 num_rows = 0;
+
+	s32 buffer_width = width + 1; /* room for the null terminator */
+
+	char scratch [buffer_width];
+	char *end    = scratch + buffer_width;
+	char *zterm  = scratch + buffer_width - 1;
+	char *cursor = scratch;
+
+	char const *base = NULL;
+
+	while (*message) {
+
+		/* plop a space */
+		base = message;
+		while (*message && !isgraph(*message)) {
+			++message;
+		}
+
+		if (message > base) {
+			if (cursor == zterm) {
+				num_written += frame__typeset_flrr_line_helper(
+					dst, &box, x, y + num_rows++, stencil, scratch, &cursor
+				);
+			}
+			else {
+				*cursor++ = ' ';
+			}
+		}
+
+		/* plop a word */
+		base = message;
+		while (isgraph(*message)) {
+			++message;
+		}
+
+		while ((message - base) > width) {
+			if ((end - cursor) <= 1) { /* we need at least 2 spaces */
+				num_written += frame__typeset_flrr_line_helper(
+					dst, &box, x, y + num_rows++, stencil, scratch, &cursor
+				);
+			}
+			u32 const space = end - cursor - 1;
+			cursor = strncpy(cursor, base, space - 1) + space - 1;
+			*cursor++ = '-';
+			base += space - 1;
+		}
+		
+		if ((end - cursor) < (message - base)) {
+			num_written += frame__typeset_flrr_line_helper(
+				dst, &box, x, y + num_rows++, stencil, scratch, &cursor
+			);
+		}
+
+		/* assume for the moment that the word can fit into the buffer.  */
+		cursor = strncpy(cursor, base, (message - base)) + (message - base);
+	}
+
+	/* flush */
+	if (scratch < cursor) {
+		num_written += frame__typeset_flrr_line_helper(
+			dst, &box, x, y + num_rows++, stencil, scratch, &cursor
+		);
+	}
+
+	/* if bounding box requested */
+	if (out_bb) {
+		out_bb->x0 = x;
+		out_bb->y0 = y;
+		out_bb->x0 = x + width;
+		out_bb->x0 = y + num_rows;
+	}
+
 	return num_written;
 }
 

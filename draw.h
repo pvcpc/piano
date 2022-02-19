@@ -360,8 +360,33 @@ frame_stencil_setne(struct frame *frame, u8 mask, struct cell const *alternate);
 u32
 frame_overlay(struct frame *dst, struct frame *src, s32 x, s32 y, s8 stencil);
 
+/**
+ * Sets the given message starting at (x, y) without any wrapping.
+ *
+ * @param dst The frame to write to.
+ * @param x The desired column.
+ * @param y The desired row.
+ * @param stencil The desired stencil value for modified cells.
+ * @param message The message to typeset.
+ */
 u32
 frame_typeset_raw(struct frame *dst, s32 x, s32 y, s8 stencil, char const *message);
+
+/**
+ * Sets the given message within the current clip box in flushed-left,
+ * ragged-right form (typical left-justified text.) The clip box should 
+ * be at least two (2) units wide.
+ *
+ * @param dst The frame to write to.
+ * @param out_bb Optional minimum bounding box of the typset text.
+ * @param x The desired column base.
+ * @param y The desired row base.
+ * @param width The desired width to fit the text into.
+ * @param stencil The desried stencil value for modified cells.
+ * @param message The message to typset.
+ */
+u32
+frame_typeset_flrr(struct frame *dst, struct box *out_bb, s32 x, s32 y, s32 width, s8 stencil, char const *message);
 
 /**
  * Rasterizes the given frame to the master terminal at the given 
