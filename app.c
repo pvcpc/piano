@@ -351,64 +351,38 @@ app__destroy_services()
 	t_manager_cleanup();
 }
 
-static struct journal_record *
-app__log_append_record(enum journal_level level, char const *restrict format_message, va_list ap)
+void
+app_log(enum journal_level level, char const *restrict format_message, ...)
 {
-	/* exhaust a arglist copy to get the required string size for the
-	 * record. */
-	va_list ap_tmp;
-	va_copy(ap_tmp, ap);
+	/* get required content buffer size */
+	va_list ap;
+	va_start(ap, format_message);
 
-	s32 n = vsnprintf(NULL, 0, format_message, ap_tmp);
+	s32 n = vsnprintf(NULL, 0, format_message, ap);
 	if (n < 0) {
-		return NULL;
+		return; /* @TODO logging: invalid format_message */
 	}
 	++n; /* make room for 0 terminator. */
 
 	/* All good, allocate the record and print into it again. */
-	struct journal_record *record = journal_append_record(&g_journal_sys, n);
+	struct journal_record *record = journal_create_record(&g_journal_sys, n);
 	if (!record) {
-		return NULL; /* @TODO should we panic here, like we're kinda screwed ? */
+		return; /* @TODO logging: cannot create record */
 	}
+	va_start(ap, format_message);
 	vsnprintf(record->content, n, format_message, ap);
 
 	record->time = app_uptime();
 	record->level = level;
-
-	return record;
 }
 
 void
-app_log_info(char const *restrict format_message, ...)
-{
-	va_list ap;
-	va_start(ap, format_message);
-	app__log_append_record(JOURNAL_LEVEL_INFO, format_message, ap);
-}
-
-void
-app_log_warn(char const *restrict format_message, ...)
-{
-	va_list ap;
-	va_start(ap, format_message);
-	app__log_append_record(JOURNAL_LEVEL_WARN, format_message, ap);
-}
-
-void
-app_log_error(char const *restrict format_message, ...)
-{
-	va_list ap;
-	va_start(ap, format_message);
-	app__log_append_record(JOURNAL_LEVEL_ERROR, format_message, ap);
-}
-
-bool
 _app_dump_system_journal(s32 fd)
 {
-	struct journal_record *now = g_journal_sys._head;
+	struct journal_record *now = g_journal_sys.head;
 	while (now) {
-		dprintf(fd, "[%6d][%6.4f][%s] %s\n", 
-			now->serial, now->time, journal_level_string(now->level), now->content
+		dprintf(fd, "[serial:%6d][cs:%4d][time:%9.4f][level:%s] %s\n", 
+			now->serial, now->content_size, now->time, journal_level_string(now->level), now->content
 		);
 		now = now->next;
 	}

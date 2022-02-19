@@ -1,19 +1,28 @@
 #ifndef INCLUDE__APP_H
 #define INCLUDE__APP_H
 
+#include "journal.h"
 #include "common.h"
 
 /* @SECTION(services) */
 void
-app_log_info(char const *restrict format_message, ...);
+app_log(enum journal_level level, char const *restrict format_message, ...);
+#define app_log_info_vvv(format_message, ...) \
+	app_log(JOURNAL_LEVEL_INF0, format_message, __VA_ARGS__)
+#define app_log_info_vv(format_message, ...) \
+	app_log(JOURNAL_LEVEL_INF1, format_message, __VA_ARGS__)
+#define app_log_info_v(format_message, ...) \
+	app_log(JOURNAL_LEVEL_INF2, format_message, __VA_ARGS__)
+#define app_log_info(format_message, ...) \
+	app_log(JOURNAL_LEVEL_INF3, format_message, __VA_ARGS__)
+#define app_log_warn(format_message, ...) \
+	app_log(JOURNAL_LEVEL_WARN, format_message, __VA_ARGS__)
+#define app_log_error(format_message, ...) \
+	app_log(JOURNAL_LEVEL_ERROR, format_message, __VA_ARGS__)
+#define app_log_critical(format_message, ...) \
+	app_log(JOURNAL_LEVEL_CRITICAL, format_message, __VA_ARGS__)
 
 void
-app_log_warn(char const *restrict format_message, ...);
-
-void
-app_log_error(char const *restrict format_message, ...);
-
-bool
 _app_dump_system_journal(s32 fd);
 
 double
