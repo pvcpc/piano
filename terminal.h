@@ -52,7 +52,7 @@ t_manager_cleanup();
 void
 t_query_size(s32 *out_w, s32 *out_h);
 
-u32
+u16
 t_poll();
 
 u32

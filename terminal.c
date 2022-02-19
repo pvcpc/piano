@@ -219,7 +219,7 @@ epm_cursor_inc()
 	return *g_read_cursor++;
 }
 
-u32
+u16
 t_poll()
 {
 	if (!g_code_p) epm_push(EPM_RESET);
