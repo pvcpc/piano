@@ -33,10 +33,12 @@ union any_int
 
 #define ALIGN_UP(v, bnd) ((((v) + (bnd) - 1) / (bnd)) * (bnd))
 
-#define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*arr))
-
 #define KILO(n) ((n) << 10)
 #define MEGA(n) ((n) << 20)
+
+#define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(*arr))
+
+#define UNUSED(x) ((void) x)
 
 /**
  * Mathematically correct quotient/remainder (that is, the remainder
