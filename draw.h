@@ -196,6 +196,26 @@ frame_zero_struct(struct frame *frame)
 }
 
 /**
+ * Convenience function to reset the frame clip to zero (0), i.e., the
+ * entire frame itself.
+ *
+ * @param frame The frame whose clip to zero.
+ *
+ * @return The frame.
+ */
+static inline struct frame *
+frame_zero_clip(struct frame *frame)
+{
+	if (frame) {
+		frame->clip.tlx = 0;
+		frame->clip.tly = 0;
+		frame->clip.brx = 0;
+		frame->clip.bry = 0;
+	}
+	return frame;
+}
+
+/**
  * Identical to `memset(frame->grid, 0, frame->alloc.grid_alloc_usable_size)`
  * for convenience.
  *
@@ -322,6 +342,19 @@ u32
 frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference);
 
 /**
+ * Analogous to assembly TEST instruction, that is, performs an AND between
+ * the given mask element and reference to set the stencil value.
+ *
+ * @param frame The frame on which to perform this test.
+ * @param mask The mask bits selecting the elements to test.
+ * @param reference The reference value to AND with.
+ *
+ * @return The number of elements testing to NOT ZERO.
+ */
+u32
+frame_stencil_test(struct frame *frame, u8 mask, u8 reference);
+
+/**
  * Performs a set operation on all cells whose stencil is 0. Eligible
  * cells have their elements replaced by the masked elements in the
  * `alternate` cell.
@@ -332,7 +365,7 @@ frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference);
  */
 u32
 frame_stencil_seteq(struct frame *frame, u8 mask, struct cell const *alternate);
-#define frame_stencil_setz(frame, mask, alternate) frame_stencil_seteq(frame, mask, aslternate)
+#define frame_stencil_setz(frame, mask, alternate) frame_stencil_seteq(frame, mask, alternate)
 
 /**
  * Performs the inverse operation of `frame_stencil_seteq`.

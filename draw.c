@@ -123,7 +123,7 @@ frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference)
 	struct cell_mask generic_mask;
 	cell_mask_from_bits(&generic_mask, mask);
 
-	/* Number of cells that tested NOT ZERO */
+	/* Number of cells that compared NOT ZERO */
 	u32 num_nz = 0;
 
 	for (s32 j = box.y0; j < box.y1; ++j) {
@@ -133,7 +133,37 @@ frame_stencil_cmp(struct frame *frame, u8 mask, s32 reference)
 			u8 const background = generic_mask.background & (cell->background - reference);
 			s8 const content    = generic_mask.content    & (cell->content - reference);
 			s8 const stencil    = generic_mask.stencil    & (cell->stencil - reference);
+
 			cell->stencil = foreground | background | content | stencil;
+
+			num_nz += cell->stencil ? 1 : 0;
+		}
+	}
+	return num_nz;
+}
+
+u32
+frame_stencil_test(struct frame *frame, u8 mask, u8 reference)
+{
+	struct box box;
+	frame_compute_clip_box(&box, frame);
+
+	struct cell_mask generic_mask;
+	cell_mask_from_bits(&generic_mask, mask);
+
+	/* Number of cells that tested NOT ZERO */
+	u32 num_nz = 0;
+
+	for (s32 j = box.y0; j < box.y1; ++j) {
+		for (s32 i = box.x0; i < box.x1; ++i) {
+			struct cell *cell = frame_cell_at(frame, i, j);
+			u8 const foreground = generic_mask.foreground & (cell->foreground & reference);
+			u8 const background = generic_mask.background & (cell->background & reference);
+			s8 const content    = generic_mask.content    & (cell->content & reference);
+			s8 const stencil    = generic_mask.stencil    & (cell->stencil & reference);
+
+			cell->stencil = foreground | background | content | stencil;
+
 			num_nz += cell->stencil ? 1 : 0;
 		}
 	}
