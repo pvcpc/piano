@@ -20,8 +20,9 @@ struct journal_record
 	u32                    record_size;
 	u32                    approx_size;
 
-	char                  *content;
 	double                 time;
+	char const            *source;
+	char                  *content;
 	u32                    content_size;
 	u32                    serial;
 	enum journal_level     level;

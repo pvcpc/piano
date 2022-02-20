@@ -40,6 +40,8 @@ app_log(enum journal_level level, char const *source, char const *restrict forma
 	va_start(ap, format_message);
 	vsnprintf(record->content, n, format_message, ap);
 
+	record->source = source;
+
 	record->time = app_uptime();
 	record->level = level;
 }
@@ -49,8 +51,8 @@ _app_dump_system_journal(s32 fd)
 {
 	struct journal_record *now = g_journal_sys.head;
 	while (now) {
-		dprintf(fd, "[serial:%6d][cs:%4d][time:%9.4f][level:%s] %s\n", 
-			now->serial, now->content_size, now->time, journal_level_string(now->level), now->content
+		dprintf(fd, "[serial:%6d][src:%16s][cs:%4d][time:%9.4f][level:%s] %s\n", 
+			now->serial, now->source, now->content_size, now->time, journal_level_string(now->level), now->content
 		);
 		now = now->next;
 	}
