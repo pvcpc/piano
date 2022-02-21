@@ -156,6 +156,15 @@ frame_clip_absolute(struct frame *frame, s32 x0, s32 y0, s32 x1, s32 y1)
 }
 
 static inline struct clip
+frame_clip_absolute_box(struct frame *frame, struct box const *box)
+{
+	return frame_clip_absolute(frame,
+		box->x0, box->y0,
+		box->x1, box->y1
+	);
+}
+
+static inline struct clip
 frame_clip_inset(struct frame *frame, s32 dx0, s32 dy0, s32 dx1, s32 dy1)
 {
 	struct clip save = frame->clip;

@@ -1,9 +1,10 @@
 #ifndef INCLUDE__APP_H
 #define INCLUDE__APP_H
 
-#include "draw.h"
-#include "journal.h"
 #include "common.h"
+#include "journal.h"
+#include "geometry.h"
+#include "draw.h"
 
 /* @SECTION(logging) */
 void
@@ -29,8 +30,8 @@ _app_dump_system_journal(s32 fd);
 /* @SECTION(activities) */
 struct activity_callbacks
 {
-	bool(*on_init   )(s32 handle);
-	bool(*on_destroy)(s32 handle);
+	void(*on_init   )(s32 handle);
+	void(*on_destroy)(s32 handle);
 
 	void(*on_appear )(s32 handle);
 	void(*on_vanish )(s32 handle);
@@ -39,11 +40,17 @@ struct activity_callbacks
 
 	void(*on_input  )(s32 handle, u16 poll_code);
 	void(*on_update )(s32 handle, double delta);
-	void(*on_render )(s32 handle, struct frame *dst, struct box const *area, double delta);
+	void(*on_render )(s32 handle, struct frame *dst, double delta);
 };
 
 s32
-app_activity_init(struct activity_callbacks const *cbs, void *opaque, char const *name);
+app_activity_create(struct activity_callbacks const *cbs, char const *hint_name);
+
+s32
+app_activity_set_opaque(s32 handle, void *opaque);
+
+s32
+app_activity_get_opaque(s32 handle, void **opaque);
 
 /* @SECTION(misc_services) */
 double
