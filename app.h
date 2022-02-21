@@ -6,6 +6,18 @@
 #include "geometry.h"
 #include "draw.h"
 
+
+/* @SECTION(core) */
+double
+app_sleep(double seconds);
+
+double
+app_uptime();
+
+void
+app_panic(u32 code, char const *message);
+
+
 /* @SECTION(logging) */
 void
 app_log(enum journal_level level, char const *source, char const *restrict format_message, ...);
@@ -51,15 +63,5 @@ app_activity_set_opaque(s32 handle, void *opaque);
 
 s32
 app_activity_get_opaque(s32 handle, void **opaque);
-
-/* @SECTION(misc_services) */
-double
-app_sleep(double seconds);
-
-double
-app_uptime();
-
-void
-app_panic_and_die(u32 code, char const *message);
 
 #endif /* INCLUDE__APP_H */

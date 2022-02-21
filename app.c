@@ -12,6 +12,72 @@
 #include "draw.h"
 #include "app.h"
 
+
+/* @SECTION(core) */
+#define APP__NANO 1000000000
+
+/* @GLOBAL */
+static struct timespec g_genesis;
+
+double
+app_sleep(double seconds)
+{
+	struct timespec start;
+	clock_gettime(CLOCK_MONOTONIC, &start);
+
+	u64 nanoseconds = (u64) (seconds * 1e9);
+	struct timespec sleep = {
+		.tv_sec  = nanoseconds / APP__NANO,
+		.tv_nsec = nanoseconds % APP__NANO,
+	};
+	clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep, NULL);
+
+	struct timespec end;
+	clock_gettime(CLOCK_MONOTONIC, &end);
+
+	return ( 
+		(end.tv_sec - start.tv_sec) +
+		(end.tv_nsec - start.tv_nsec) * 1e-9
+	);
+}
+
+double
+app_uptime()
+{
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	return   (now.tv_sec - g_genesis.tv_sec)
+		   + (now.tv_nsec - g_genesis.tv_nsec) * 1e-9;
+}
+
+void
+app_panic(u32 code, char const *message) 
+{
+	fputs(message, stderr);
+	exit(code);
+}
+
+static void
+app__init_core()
+{
+	if (!t_manager_setup()) {
+		app_panic(1, "Not a TTY!");
+	}
+
+	if (clock_gettime(CLOCK_MONOTONIC, &g_genesis) < 0) {
+		app_panic(1, "Check your clock captain!");
+	}
+
+}
+
+static void
+app__shutdown_core()
+{
+	t_manager_cleanup();
+}
+
+
 /* @SECTION(logging) */
 
 /* @GLOBAL */
@@ -20,9 +86,6 @@ static struct journal  g_journal_sys;
 void
 app_log(enum journal_level level, char const *source, char const *restrict format_message, ...)
 {
-	/* @TODO implement source field in journal */
-	UNUSED(source);
-
 	/* get required content buffer size */
 	va_list ap;
 	va_start(ap, format_message);
@@ -57,6 +120,18 @@ _app_dump_system_journal(s32 fd)
 		);
 		now = now->next;
 	}
+}
+
+static void
+app__init_logging()
+{
+	/* @TODO setup files and whatever */
+}
+
+static void
+app__shutdown_logging()
+{
+	/* @TODO make sure we save logs here */
 }
 
 /* @SECTION(activities) */
@@ -177,75 +252,24 @@ app_activity_get_opaque(s32 handle, void **opaque)
 	return act->handle;
 }
 
-/* @SECTION(misc_services) */
-#define APP__NANO 1000000000
-
-/* @GLOBAL */
-static struct timespec g_genesis;
-
-double
-app_sleep(double seconds)
-{
-	struct timespec start;
-	clock_gettime(CLOCK_MONOTONIC, &start);
-
-	u64 nanoseconds = (u64) (seconds * 1e9);
-	struct timespec sleep = {
-		.tv_sec  = nanoseconds / APP__NANO,
-		.tv_nsec = nanoseconds % APP__NANO,
-	};
-	clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep, NULL);
-
-	struct timespec end;
-	clock_gettime(CLOCK_MONOTONIC, &end);
-
-	return ( 
-		(end.tv_sec - start.tv_sec) +
-		(end.tv_nsec - start.tv_nsec) * 1e-9
-	);
-}
-
-double
-app_uptime()
-{
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-
-	return   (now.tv_sec - g_genesis.tv_sec)
-		   + (now.tv_nsec - g_genesis.tv_nsec) * 1e-9;
-}
-
-void
-app_panic_and_die(u32 code, char const *message) 
-{
-	fputs(message, stderr);
-	exit(code);
-}
-
 static void
-app__init_services()
+app__init_activities()
 {
-	if (!t_manager_setup()) {
-		app_panic_and_die(1, "Not a TTY!");
-	}
-
-	if (clock_gettime(CLOCK_MONOTONIC, &g_genesis) < 0) {
-		app_panic_and_die(1, "Check your clock captain!");
-	}
-
-	/*  */
 	for (s32 i = 0; i < APP__ACTIVITY_POOL_SIZE; ++i) {
 		g_activity_pool[i].handle = -1;
 	}
+
+	/* @TODO register core application activities like the piano roll,
+	 * log tabl, etc. */
 }
 
 static void
-app__destroy_services()
+app__shutdown_activities()
 {
-	t_manager_cleanup();
+	/* @TODO make sure we destroy all active activities */
 }
 
-/* @SECTION(app) */
+/* @SECTION(main) */
 #define APP__UPDATE_DELTA 8e-3
 #define APP__DRAW_DELTA 8e-3
 
@@ -253,18 +277,23 @@ app__destroy_services()
 static bool            g_should_run       = true;
 
 
-#ifndef APP_DEMO
 extern void
 bounce_create_activity();
 
 int
 main(void)
 {
-	/* 
-	 * Setup
+	/*
+	 * Service-level initialization.
 	 */
-	app__init_services();
+	app__init_core();
+	app__init_logging();
+	app__init_activities();
 
+
+	/* 
+	 * Application setup
+	 */
 	bounce_create_activity();
 	bounce_create_activity();
 
@@ -274,8 +303,9 @@ main(void)
 	double tm_update_last = app_uptime();
 	double tm_render_last = app_uptime();
 
+
 	/*
-	 * Do cool stuff
+	 * Where the magic happens.
 	 */
 	while (g_should_run) {
 
@@ -327,36 +357,20 @@ main(void)
 		}
 	}
 	
+
 	/* 
-	 * Cleanup
+	 * Application cleanup
 	 */
 	frame_free(&frame);
 
-	app__destroy_services();
-
 	_app_dump_system_journal(STDOUT_FILENO);
 
+
+	/* 
+	 * Service shutdown.
+	 */
+	app__shutdown_activities();
+	app__shutdown_logging();
+	app__shutdown_core();
 	return 0;
 }
-#endif /* ifndef APP_DEMO */
-
-
-#ifdef APP_DEMO
-extern int 
-demo();
-
-int 
-main()
-{
-#define SUPPRESS(x) ((void) (x))
-	SUPPRESS(g_should_run);
-
-	app__init_services();
-
-	int const demo_status = demo();
-
-	app__destroy_services();
-
-	return demo_status;
-}
-#endif /* ifdef APP_DEMO  */
